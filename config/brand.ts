@@ -1,0 +1,47 @@
+/**
+ * Brand configuration — the ONLY place the product name appears.
+ * Never import this into contract source, events, or file names.
+ * All contract and event names use neutral identifiers (HandleRegistry, KycRegistry, PayRouter).
+ */
+
+export const BRAND = {
+  name: 'Dash',
+  tagline: 'Send and receive USDC instantly',
+  domain: 'dash.app',
+  /** URI scheme for deep links: dash://pay?to=alice&amount=5 */
+  uriScheme: 'dash',
+  twitter: '@dash_app',
+  github: 'dash-app',
+} as const;
+
+// ---------------------------------------------------------------------------
+// On-chain constants (mirrors contract constructor args — keep in sync)
+// ---------------------------------------------------------------------------
+
+/** Canonical Permit2 address — same on all EVM chains */
+export const PERMIT2_ADDRESS = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as const;
+
+/** USDC ERC-20 on Arc (mainnet and testnet share this address) */
+export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000' as const;
+
+// Tier limits in 6-decimal USDC units
+export const TIER_LIMITS = {
+  0: { perPayment: 5_000_000n,          daily: 50_000_000n },
+  1: { perPayment: 100_000_000n,        daily: 20_000_000_000_000n },
+  2: { perPayment: 20_000_000_000_000n, daily: 2n ** 256n - 1n }, // type(uint256).max
+} as const;
+
+/** Global ceiling applied on top of tier limits: 25 USDC */
+export const GLOBAL_PER_PAYMENT_CAP = 25_000_000n;
+
+/** Minimum KYC tier required to create a bill order */
+export const MIN_BILL_TIER = 1;
+
+/** Seconds before a payer can reclaim an unfulfilled bill order */
+export const ORDER_TIMEOUT_SECONDS = 1800; // 30 minutes
+
+/** Default fee on fulfilled bill orders in basis points (0 = no fee at launch) */
+export const DEFAULT_FEE_BPS = 0;
+
+/** Maximum platform fee enforced in contract code */
+export const MAX_FEE_BPS = 200;

@@ -1,0 +1,66 @@
+# Agent Notes — Dash USDC Spending App
+
+## Project Overview
+Non-custodial USDC spending app on Arc mainnet. Users send USDC by handle or address, request payment via link/QR, scan QR to pay, and pay bills via a sandboxed biller flow. All payment flows use Permit2 SignatureTransfer (exact amount, single-use nonce). Identity verification and billers are sandboxed/mock, clearly labeled in the UI.
+
+## Deployed Contracts
+None deployed yet. Contracts are built and tested, awaiting deployment.
+
+Deploy order: HandleRegistry → KycRegistry → PayRouter (PayRouter takes both registry addresses as constructor args).
+PayRouter constructor now accepts `InitialBiller[] memory initialBillers` (array) instead of two single-biller params. All sandbox demo billers share one treasury address with distinct billerIds.
+
+## Contract Addresses (fill in after deploy)
+```
+VITE_HANDLE_REGISTRY_ADDRESS=
+VITE_KYC_REGISTRY_ADDRESS=
+VITE_PAY_ROUTER_ADDRESS=
+```
+
+## Chain
+- Arc mainnet: chain ID 5042, RPC https://rpc.mainnet.arc.io, explorer https://explorer.arc.io
+- Arc Testnet: chain ID 5042002, RPC https://rpc.testnet.arc.io
+
+## Key Addresses (Arc mainnet and testnet)
+- USDC ERC-20: `0x3600000000000000000000000000000000000000` (6 decimals)
+- Permit2: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
+
+## Constructor Values (PayRouter)
+From `config/brand.ts`:
+- PERMIT2_ADDRESS: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
+- USDC_ADDRESS: `0x3600000000000000000000000000000000000000`
+- TIER_LIMITS: Tier0={5_000_000, 50_000_000}, Tier1={100_000_000, 20_000_000_000_000}, Tier2={20_000_000_000_000, 0}
+- GLOBAL_PER_PAYMENT_CAP: 25_000_000 (25 USDC)
+- MIN_BILL_TIER: 1
+- ORDER_TIMEOUT_SECONDS: 1800 (30 min)
+- DEFAULT_FEE_BPS: 0
+- MAX_FEE_BPS: 200
+
+## Role Addresses (fill in before deploy)
+```
+initialAdmin=<MULTISIG_ADDRESS>      # DEFAULT_ADMIN_ROLE
+OPERATOR_ROLE=<HOT_WALLET>           # grant after deploy
+VERIFIER_ROLE=<SEPARATE_WALLET>      # grant after deploy
+PAUSER_ROLE=<THIRD_ADDRESS>          # grant after deploy
+```
+
+## Security Notes
+- See AUDIT.md for documented intentional design choices (Permit2 max-approval, block.timestamp, no-timelock-at-genesis).
+- Both solidity-auditor and functional-auditor returned no findings.
+- 114 unit tests, 0 failures.
+
+## Files
+- `config/brand.ts` — sole source of product name and all constructor constants
+- `contracts/HandleRegistry.sol` — handle claim/release
+- `contracts/KycRegistry.sol` — tier 0/1/2 with expiry
+- `contracts/PayRouter.sol` — all payment flows, escrow, timelock config
+- `contracts/test/` — Foundry test files (6 files)
+- `contracts/test-helpers/` — MockERC20, MockPermit2
+- `src/lib/` — permit2.ts, tiers.ts, hash.ts, webhooks.ts, share.ts
+- `src/hooks/` — useHandleRegistry, useKycTier, usePayRouter, useBillOrder
+- `src/components/shared/` — WalletBar, ChainGuard, TxStatus, BottomSheet, Permit2Notice
+- `server/index.ts` — bills API backend (port 3001, `bun run server`)
+- `src/lib/billers.ts` — biller types, fetch hook, recents/favorites helpers
+- `src/components/bills/` — BillerCard, BillerCatalog, BillOrderForm, OrderStatus
+- `src/components/send/` — SendForm
+- `src/components/request/` — RequestForm
+- `src/pages/` — Home, Send, Request, Scan, Bills, OrderStatusPage, Settings, Profile

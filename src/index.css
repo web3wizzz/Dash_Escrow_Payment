@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Dash design tokens ─────────────────────────────────────────────────── */
+:root {
+  /* Canvas */
+  --bg:                #F5F7FB;
+  --bg-gradient:       linear-gradient(180deg, #F5F7FB 0%, #EEF1F8 100%);
+
+  /* Surfaces */
+  --surface:           rgba(255, 255, 255, 0.78);
+  --surface-strong:    rgba(255, 255, 255, 0.95);
+  --surface-muted:     #ECEEF5;
+
+  /* Ink (text / icons) */
+  --ink:               #1B1F4B;   /* Dash ink */
+  --ink-2:             #3B3F6B;
+  --muted:             #6B6F99;
+  --subtle:            #9294B8;
+
+  /* Borders */
+  --border:            rgba(27, 31, 75, 0.10);
+  --border-strong:     rgba(27, 31, 75, 0.30);
+
+  /* Brand accents */
+  --saffron:           #F2A900;   /* primary CTA */
+  --saffron-hover:     #D99600;
+  --saffron-muted:     rgba(242, 169, 0, 0.14);
+  --indigo-deep:       #0E1030;   /* balance card, hero surfaces */
+
+  /* Semantic */
+  --accent:            #1B1F4B;   /* secondary CTA = ink */
+  --accent-hover:      #0E1030;
+  --focus:             #F2A900;
+  --success:           #1a8047;
+  --danger:            #ba2b4c;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+}
+
+/* ─── Typography helpers ─────────────────────────────────────────────────── */
+.display {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.bricolage {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', Menlo, monospace;
+}
+
+/* ─── Button base tokens ─────────────────────────────────────────────────── */
+
+/* Primary: saffron bg, deep-indigo text — AA contrast (7.7:1) */
+.btn-primary {
+  background: var(--saffron);
+  color: var(--indigo-deep);
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+.btn-primary:hover  { background: var(--saffron-hover); }
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* Secondary: ink bg, white text */
+.btn-secondary {
+  background: var(--ink);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-secondary:hover  { background: var(--accent-hover); }
+.btn-secondary:active { transform: scale(0.97); }
+.btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* Ghost: transparent with ink border */
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1.5px solid var(--border-strong);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-ghost:hover  { background: var(--saffron-muted); }
+.btn-ghost:active { transform: scale(0.97); }
+
+/* ─── Safe-area utilities ────────────────────────────────────────────────── */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,8 @@
+{"type":"event","event":{"event":{"kind":"rpc","id":"65c92005-1","timestamp":1792878922401,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":101},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"2984c990-1","timestamp":1792879045256,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":81},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"c0184f5a-1","timestamp":1792879441291,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":123},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"http","id":"504176c7-1","timestamp":1792879676578,"method":"GET","url":"https://ikebbf4s9sdk447kunksx.preview.studio.arc.io/api/billers","status":200,"duration":570},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"31dea216-1","timestamp":1792880283496,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":42},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"c924dd45-1","timestamp":1792880296190,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":531},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"c924dd45-2","timestamp":1792880697123,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":318},"enrichmentStatus":"none"}}
+{"type":"event","event":{"event":{"kind":"rpc","id":"c924dd45-3","timestamp":1792880697123,"method":"eth_accounts","params":[],"chainId":0,"result":[],"duration":322},"enrichmentStatus":"none"}}
