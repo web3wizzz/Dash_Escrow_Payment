@@ -4,16 +4,19 @@
 Non-custodial USDC spending app on Arc mainnet. Users send USDC by handle or address, request payment via link/QR, scan QR to pay, and pay bills via a sandboxed biller flow. All payment flows use Permit2 SignatureTransfer (exact amount, single-use nonce). Identity verification and billers are sandboxed/mock, clearly labeled in the UI.
 
 ## Deployed Contracts
-None deployed yet. Contracts are built and tested, awaiting deployment.
+None deployed yet. Contracts are built and all 201 tests pass. Ready for Arc testnet deployment.
 
-Deploy order: HandleRegistry → KycRegistry → PayRouter (PayRouter takes both registry addresses as constructor args).
-PayRouter constructor now accepts `InitialBiller[] memory initialBillers` (array) instead of two single-biller params. All sandbox demo billers share one treasury address with distinct billerIds.
+Deploy order: HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts.
+Use `contracts/script/Deploy.s.sol` (reads env vars, grants all roles, prints VITE_* lines).
+See `docs/testnet-smoke-test.md` for step-by-step instructions.
 
 ## Contract Addresses (fill in after deploy)
 ```
 VITE_HANDLE_REGISTRY_ADDRESS=
 VITE_KYC_REGISTRY_ADDRESS=
 VITE_PAY_ROUTER_ADDRESS=
+VITE_SCHEDULED_PAYOUTS_ADDRESS=
+VITE_FEE_WALLET_ADDRESS=
 ```
 
 ## Chain
@@ -45,8 +48,9 @@ PAUSER_ROLE=<THIRD_ADDRESS>          # grant after deploy
 
 ## Security Notes
 - See AUDIT.md for documented intentional design choices (Permit2 max-approval, block.timestamp, no-timelock-at-genesis).
-- Both solidity-auditor and functional-auditor returned no findings.
-- 114 unit tests, 0 failures.
+- Security review completed: docs/security-review.md. 2 Medium issues fixed (M-01: timelock overwrite, M-02: ScheduledPayouts missing tier limits). No Critical/High open issues.
+- 201 unit tests (forge test --via-ir), 0 failures.
+- Frontend: 0 lint errors, 0 TypeScript errors.
 
 ## Files
 - `config/brand.ts` — sole source of product name and all constructor constants

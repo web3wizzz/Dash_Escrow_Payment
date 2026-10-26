@@ -4,7 +4,7 @@
 
 import { BrowserRouter, Routes, Route, NavLink, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home as HomeIcon, Activity, Zap, User, QrCode } from 'lucide-react'
+import { Home as HomeIcon, Zap, User, QrCode, CalendarClock } from 'lucide-react'
 import { Home } from './pages/Home'
 import { Send } from './pages/Send'
 import { Request } from './pages/Request'
@@ -13,6 +13,9 @@ import { Bills } from './pages/Bills'
 import { OrderStatusPage } from './pages/OrderStatusPage'
 import { Settings } from './pages/Settings'
 import { Profile } from './pages/Profile'
+import { Schedules } from './pages/Schedules'
+import { ScheduleCreate } from './pages/ScheduleCreate'
+import { ScheduleDetail } from './pages/ScheduleDetail'
 
 const fadeUp = {
   initial: { opacity: 0, y: 6 },
@@ -23,11 +26,11 @@ const fadeUp = {
 
 // Four corner tabs — Send and Request live on Home, not in the nav
 const tabItems = [
-  { to: '/',        icon: HomeIcon, label: 'Home',     exact: true },
-  { to: '/activity', icon: Activity,  label: 'Activity', exact: false },
+  { to: '/',          icon: HomeIcon,     label: 'Home',      exact: true },
+  { to: '/schedules', icon: CalendarClock, label: 'Schedules', exact: false },
   null, // center slot — occupied by raised Scan button
-  { to: '/bills',   icon: Zap,      label: 'Bills',    exact: false },
-  { to: '/profile', icon: User,     label: 'Profile',  exact: false },
+  { to: '/bills',     icon: Zap,          label: 'Bills',     exact: false },
+  { to: '/profile',   icon: User,         label: 'Profile',   exact: false },
 ]
 
 function BottomNav() {
@@ -52,7 +55,7 @@ function BottomNav() {
           paddingRight: 8,
         }}
       >
-        {tabItems.map((item, i) => {
+        {tabItems.map((item, _i) => {
           // Center slot — raised saffron Scan FAB
           if (item === null) {
             return (
@@ -148,11 +151,13 @@ function AppShell() {
                 <Route path="/pay"           element={<Send />} />
                 <Route path="/request"       element={<Request />} />
                 <Route path="/scan"          element={<Scan />} />
-                <Route path="/activity"      element={<ActivityPlaceholder />} />
-                <Route path="/bills"         element={<Bills />} />
-                <Route path="/orders/:orderId" element={<OrderStatusPage />} />
-                <Route path="/settings"      element={<Settings />} />
-                <Route path="/profile"       element={<Profile />} />
+                <Route path="/bills"              element={<Bills />} />
+                <Route path="/orders/:orderId"   element={<OrderStatusPage />} />
+                <Route path="/schedules"          element={<Schedules />} />
+                <Route path="/schedules/new"      element={<ScheduleCreate />} />
+                <Route path="/schedules/:scheduleId" element={<ScheduleDetail />} />
+                <Route path="/settings"           element={<Settings />} />
+                <Route path="/profile"            element={<Profile />} />
               </Routes>
             </motion.div>
           </AnimatePresence>
@@ -164,15 +169,6 @@ function AppShell() {
   )
 }
 
-/** Stub route until Activity page is built */
-function ActivityPlaceholder() {
-  return (
-    <div className="pt-10 text-center space-y-2">
-      <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Activity</p>
-      <p className="text-xs" style={{ color: 'var(--muted)' }}>Coming soon — your transaction history will appear here.</p>
-    </div>
-  )
-}
 
 export default function App() {
   return (

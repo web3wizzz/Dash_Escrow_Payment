@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {KycRegistry} from "./KycRegistry.sol";
 
 struct TokenPermissions {
     address token;
@@ -23,26 +24,20 @@ struct SignatureTransferDetails {
     uint256 requestedAmount;
 }
 
-struct PermitWitnessTransferFrom {
-    TokenPermissions permitted;
-    uint256 nonce;
-    uint256 deadline;
-    bytes32 witness;
-}
-
 interface IPermit2 {
     function permitTransferFrom(
-        PermitTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
         bytes calldata signature
     ) external;
 
     function permitWitnessTransferFrom(
-        PermitWitnessTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
-        bytes32 witnessTypeHash,
+        bytes32 witness,
+        string calldata witnessTypeString,
         bytes calldata signature
     ) external;
 }
@@ -93,6 +88,9 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
     error NotRevocable();
     error NotSender();
     error NothingToClaim();
+    error ExceedsGlobalCap();
+    error ExceedsTierPerPaymentCap(uint8 tier);
+    error ExceedsTierDailyCap(uint8 tier);
 
     event ScheduleCreated(
         bytes32 indexed scheduleId,
@@ -124,18 +122,38 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
     mapping(address => uint128) public pendingWithdrawals;
     mapping(address => uint256) public depositNonces;
 
+    KycRegistry public immutable kycRegistry;
+    uint96 public immutable globalPerPaymentCap;
+    uint96 public immutable tierPerPaymentCap0;
+    uint96 public immutable tierPerPaymentCap1;
+    uint96 public immutable tierPerPaymentCap2;
+
     // Invariant:
     // USDC held by this contract equals the aggregate un-distributed amount across schedules:
     // - for active schedules: totalAmount - claimed
     // - for cancelled schedules: totalAmount - vestedTotal_at_cancellation
 
-    constructor(address usdc_, address permit2_, address initialAdmin) {
-        if (usdc_ == address(0) || permit2_ == address(0) || initialAdmin == address(0)) {
+    constructor(
+        address usdc_,
+        address permit2_,
+        address initialAdmin,
+        address kycRegistry_,
+        uint96 globalPerPaymentCap_,
+        uint96 tierPerPaymentCap0_,
+        uint96 tierPerPaymentCap1_,
+        uint96 tierPerPaymentCap2_
+    ) {
+        if (usdc_ == address(0) || permit2_ == address(0) || initialAdmin == address(0) || kycRegistry_ == address(0)) {
             revert ZeroAddress();
         }
 
         usdc = IERC20(usdc_);
         permit2 = IPermit2(permit2_);
+        kycRegistry = KycRegistry(kycRegistry_);
+        globalPerPaymentCap = globalPerPaymentCap_;
+        tierPerPaymentCap0 = tierPerPaymentCap0_;
+        tierPerPaymentCap1 = tierPerPaymentCap1_;
+        tierPerPaymentCap2 = tierPerPaymentCap2_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
         _grantRole(PAUSER_ROLE, initialAdmin);
@@ -143,13 +161,14 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @notice Deposits sender USDC into a new schedule using Permit2 witness transfer; anyone can relay, but funds are always pulled from msg.sender and held by this contract.
+     * @dev Reverts if the deposit amount exceeds the sender's tier per-payment cap or the global cap.
      * @param permit Permit2 witness transfer authorization.
      * @param sig Signature for the Permit2 witness transfer.
      * @param params Schedule creation parameters bound into the Permit2 witness.
      * @return scheduleId Deterministic schedule identifier.
      */
     function deposit(
-        PermitWitnessTransferFrom calldata permit,
+        PermitTransferFrom calldata permit,
         bytes calldata sig,
         ScheduleParams calldata params
     ) external whenNotPaused nonReentrant returns (bytes32 scheduleId) {
@@ -176,6 +195,8 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
             revert InvalidScheduleParams();
         }
 
+        _checkTierCap(msg.sender, params.totalAmount);
+
         uint256 nonce = depositNonces[msg.sender]++;
         scheduleId = keccak256(abi.encodePacked(msg.sender, params.recipient, nonce));
 
@@ -195,14 +216,12 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
             )
         );
 
-        PermitWitnessTransferFrom memory permitWithWitness = permit;
-        permitWithWitness.witness = witness;
-
         permit2.permitWitnessTransferFrom(
-            permitWithWitness,
+            permit,
             SignatureTransferDetails({to: address(this), requestedAmount: params.totalAmount}),
             msg.sender,
-            SCHEDULE_WITNESS_TYPEHASH,
+            witness,
+            string(abi.encodePacked("ScheduleWitness(bytes32 scheduleId,address recipient,uint8 scheduleType,bool revocable,uint64 startTime,uint64 endTime,uint64 cliffEnd,uint64 period,uint128 periodAmount,uint128 totalAmount) TokenPermissions(address token,uint256 amount)")),
             sig
         );
 
@@ -366,5 +385,18 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
         }
 
         return 0;
+    }
+
+    /// @dev Checks that `amount` does not exceed the global cap or the caller's tier per-payment cap.
+    function _checkTierCap(address payer, uint256 amount) internal view {
+        if (amount > globalPerPaymentCap) revert ExceedsGlobalCap();
+
+        uint8 tier = kycRegistry.effectiveTier(payer);
+        uint96 cap;
+        if (tier == 0) cap = tierPerPaymentCap0;
+        else if (tier == 1) cap = tierPerPaymentCap1;
+        else cap = tierPerPaymentCap2;
+
+        if (amount > cap) revert ExceedsTierPerPaymentCap(tier);
     }
 }

@@ -218,4 +218,53 @@ contract PayRouterTimelockTest is PayRouterTestBase {
 
         assertTrue(router.paused());
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // T-01: Re-queuing a pending (unexecuted) change is blocked
+    // ─────────────────────────────────────────────────────────────
+
+    /// @dev Verifies that queueConfigChange reverts with TimelockPendingExecution
+    ///      if the same key has a queued but unexecuted change.
+    function test_RevertQueueConfigChange_PendingExecution() public {
+        bytes memory payload1 = abi.encode(uint16(50));
+        bytes memory payload2 = abi.encode(uint16(100));
+
+        // Queue the first change
+        vm.prank(admin);
+        router.queueConfigChange(CHANGE_FEE_BPS, payload1);
+
+        // Attempt to re-queue before execution — must revert
+        vm.prank(admin);
+        vm.expectRevert(PayRouter.TimelockPendingExecution.selector);
+        router.queueConfigChange(CHANGE_FEE_BPS, payload2);
+    }
+
+    /// @dev After executing the first queued change, a new one can be queued.
+    function test_QueueConfigChange_AfterExecution_Succeeds() public {
+        bytes memory payload1 = abi.encode(uint16(50));
+        bytes memory payload2 = abi.encode(uint16(100));
+
+        // Use absolute timestamps to avoid Foundry IR-mode block.timestamp capture quirks.
+        uint256 deploy   = 1;         // Foundry default initial block.timestamp
+        uint256 warp1    = deploy + 24 hours + 1;   // 86402
+        uint256 warp2    = warp1 + 24 hours + 1;    // 172803
+
+        vm.prank(admin);
+        router.queueConfigChange(CHANGE_FEE_BPS, payload1);
+
+        vm.warp(warp1);
+        vm.prank(admin);
+        router.executeConfigChange(CHANGE_FEE_BPS);
+        assertEq(router.feeBps(), 50);
+
+        // Queue a second change (first is now executed, so guard passes)
+        vm.prank(admin);
+        router.queueConfigChange(CHANGE_FEE_BPS, payload2);
+
+        // ETA for second change is warp1 + 24h = 172801. Warp past it.
+        vm.warp(warp2);
+        vm.prank(admin);
+        router.executeConfigChange(CHANGE_FEE_BPS);
+        assertEq(router.feeBps(), 100);
+    }
 }

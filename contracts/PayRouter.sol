@@ -25,26 +25,20 @@ struct SignatureTransferDetails {
     uint256 requestedAmount;
 }
 
-struct PermitWitnessTransferFrom {
-    TokenPermissions permitted;
-    uint256 nonce;
-    uint256 deadline;
-    bytes32 witness;
-}
-
 interface IPermit2 {
     function permitTransferFrom(
-        PermitTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
         bytes calldata signature
     ) external;
 
     function permitWitnessTransferFrom(
-        PermitWitnessTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
-        bytes32 witnessTypeHash,
+        bytes32 witness,
+        string calldata witnessTypeString,
         bytes calldata signature
     ) external;
 }
@@ -96,6 +90,7 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
     error TimelockNotReady();
     error TimelockAlreadyExecuted();
     error TimelockNotQueued();
+    error TimelockPendingExecution();
     error ExceedsGlobalCap();
     error ExceedsTierPerPaymentCap(uint8 tier);
     error ExceedsTierDailyCap(uint8 tier);
@@ -153,7 +148,7 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
     mapping(address => address) public billerTreasury;
     mapping(address => mapping(uint256 => uint128)) private _dailySpend;
     mapping(bytes32 => BillOrder) public orders;
-    uint256 private _orderNonce;
+    mapping(address => uint256) private _orderNonces;
 
     mapping(bytes32 => bytes) private _pendingChanges;
     mapping(bytes32 => uint256) private _pendingEtas;
@@ -315,7 +310,7 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
      * @return orderId Deterministic order identifier.
      */
     function createOrder(
-        PermitWitnessTransferFrom calldata permit,
+        PermitTransferFrom calldata permit,
         bytes calldata sig,
         address billerId,
         bytes32 accountHash,
@@ -329,17 +324,17 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
 
         _checkAndRecordSpend(msg.sender, amount);
 
-        orderId = keccak256(abi.encodePacked(msg.sender, billerId, accountHash, ref, block.number, _orderNonce++));
+        // orderId is deterministic from inputs known before signing: uses per-payer nonce
+        // so two payers can submit simultaneously without nonce interference.
+        orderId = keccak256(abi.encodePacked(msg.sender, billerId, accountHash, ref, _orderNonces[msg.sender]++));
         bytes32 witness = keccak256(abi.encode(BILL_ORDER_WITNESS_TYPEHASH, orderId, billerId, accountHash, ref));
 
-        PermitWitnessTransferFrom memory permitWithWitness = permit;
-        permitWithWitness.witness = witness;
-
         permit2.permitWitnessTransferFrom(
-            permitWithWitness,
+            permit,
             SignatureTransferDetails({to: address(this), requestedAmount: amount}),
             msg.sender,
-            BILL_ORDER_WITNESS_TYPEHASH,
+            witness,
+            string(abi.encodePacked("BillOrderWitness(bytes32 orderId,address billerId,bytes32 accountHash,bytes32 ref) TokenPermissions(address token,uint256 amount)")),
             sig
         );
 
@@ -362,6 +357,9 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
     function fulfillOrder(bytes32 orderId) external onlyRole(OPERATOR_ROLE) nonReentrant {
         BillOrder storage order = orders[orderId];
         _requirePending(order);
+
+        // Cannot fulfill after the order's own deadline — payer's reclaim window has opened.
+        if (block.timestamp >= uint256(order.createdAt) + orderTimeoutSeconds) revert OrderNotPending();
 
         uint256 fee = (uint256(order.amount) * uint256(order.feeBps)) / 10_000;
         uint256 net = uint256(order.amount) - fee;
@@ -414,6 +412,13 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
     function queueConfigChange(bytes32 changeKey, bytes calldata encodedChange) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (!_isSupportedChangeKey(changeKey) || encodedChange.length == 0) revert InvalidConfig();
 
+        // Prevent silently overwriting a queued-but-unexecuted change.
+        // If a prior change is pending (eta set and not yet executed), it must be executed
+        // or explicitly cancelled before a new one can be queued for the same key.
+        if (_pendingEtas[changeKey] != 0 && !_pendingExecuted[changeKey]) {
+            revert TimelockPendingExecution();
+        }
+
         uint256 eta = block.timestamp + TIMELOCK_DELAY;
         _pendingChanges[changeKey] = encodedChange;
         _pendingEtas[changeKey] = eta;
@@ -451,6 +456,16 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
      */
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @notice Returns the order nonce that will be used for the next createOrder call from `payer`.
+     * @dev Per-payer nonce ensures two concurrent payers never interfere with each other.
+     * @param payer Wallet address.
+     * @return nonce Current (pre-increment) nonce for this payer.
+     */
+    function orderNonceOf(address payer) external view returns (uint256 nonce) {
+        nonce = _orderNonces[payer];
     }
 
     /**

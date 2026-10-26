@@ -6,7 +6,7 @@ import {MockERC20}   from "../test-helpers/MockERC20.sol";
 import {MockPermit2} from "../test-helpers/MockPermit2.sol";
 import {KycRegistry}    from "../KycRegistry.sol";
 import {HandleRegistry} from "../HandleRegistry.sol";
-import {PayRouter, InitialBiller, PermitTransferFrom, PermitWitnessTransferFrom,
+import {PayRouter, InitialBiller, PermitTransferFrom,
         SignatureTransferDetails, TokenPermissions} from "../PayRouter.sol";
 
 abstract contract PayRouterTestBase is Test {
@@ -120,13 +120,13 @@ abstract contract PayRouterTestBase is Test {
         });
     }
 
-    /// Build a minimal PermitWitnessTransferFrom for `amount` USDC (witness zeroed — router overwrites it).
-    function _buildWitnessPermit(uint256 amount) internal view returns (PermitWitnessTransferFrom memory) {
-        return PermitWitnessTransferFrom({
+    /// Build a PermitTransferFrom for `amount` USDC used in createOrder.
+    /// The contract computes the witness hash and passes it as a separate bytes32 to Permit2.
+    function _buildWitnessPermit(uint256 amount) internal view returns (PermitTransferFrom memory) {
+        return PermitTransferFrom({
             permitted: TokenPermissions({token: address(usdc), amount: amount}),
             nonce: 0,
-            deadline: block.timestamp + 1 hours,
-            witness: bytes32(0)  // router will overwrite before calling permit2
+            deadline: block.timestamp + 1 hours
         });
     }
 

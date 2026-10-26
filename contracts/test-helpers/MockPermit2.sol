@@ -2,15 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {MockERC20} from "./MockERC20.sol";
-// Import structs from PayRouter to avoid redefinition conflicts
-import {PermitTransferFrom, PermitWitnessTransferFrom, SignatureTransferDetails} from "../PayRouter.sol";
+import {PermitTransferFrom, SignatureTransferDetails} from "../PayRouter.sol";
 
-/// @dev Mock Permit2 that:
-///   1. Records the last call arguments as flat fields.
-///   2. Transfers tokens from `owner` to `transferDetails.to` (simulating real Permit2).
-///   3. Optionally enforces owner == msg.sender (mirrors real Permit2 security).
+/// @dev Mock Permit2 matching the CANONICAL Uniswap Permit2 ISignatureTransfer interface.
+///   6-parameter permitWitnessTransferFrom: (permit, transferDetails, owner, witness, witnessTypeString, sig)
+///   Records all call arguments and simulates the token pull.
+///   Optional enforceSenderCheck mirrors real Permit2's owner==msg.sender requirement.
 contract MockPermit2 {
-    // Last permitTransferFrom call — flat fields (structs cannot be returned via auto-getter)
+    // Last permitTransferFrom call
     address  public lastPermitToken;
     uint256  public lastPermitAmount;
     address  public lastDetailsTo;
@@ -21,8 +20,8 @@ contract MockPermit2 {
     // Last permitWitnessTransferFrom call
     address  public lastWitnessDetailsTo;
     address  public lastWitnessOwner;
-    bytes32  public lastWitnessTypeHash;
-    bytes32  public lastWitnessValue;
+    bytes32  public lastWitnessValue;          // the witness bytes32 hash
+    string   public lastWitnessTypeString;     // the witnessTypeString
     bytes    public lastWitnessSig;
 
     uint256 public permitCallCount;
@@ -35,8 +34,9 @@ contract MockPermit2 {
         enforceSenderCheck = _enforceSenderCheck;
     }
 
+    /// @dev Canonical 4-parameter permitTransferFrom (non-witness).
     function permitTransferFrom(
-        PermitTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
         bytes calldata signature
@@ -53,29 +53,31 @@ contract MockPermit2 {
         lastSig                    = signature;
         ++permitCallCount;
 
-        // Simulate the actual token pull
         MockERC20(permit.permitted.token).transferFrom(owner, transferDetails.to, transferDetails.requestedAmount);
     }
 
+    /// @dev Canonical 6-parameter permitWitnessTransferFrom.
+    ///   witness       = keccak256(abi.encode(TYPEHASH, ...fields...))  — computed by the calling contract
+    ///   witnessTypeString = full EIP-712 type string including TokenPermissions
     function permitWitnessTransferFrom(
-        PermitWitnessTransferFrom calldata permit,
+        PermitTransferFrom memory permit,
         SignatureTransferDetails calldata transferDetails,
         address owner,
-        bytes32 witnessTypeHash,
+        bytes32 witness,
+        string calldata witnessTypeString,
         bytes calldata signature
     ) external {
         if (enforceSenderCheck) {
             require(owner == msg.sender, "MockPermit2: owner != msg.sender");
         }
 
-        lastWitnessDetailsTo = transferDetails.to;
-        lastWitnessOwner     = owner;
-        lastWitnessTypeHash  = witnessTypeHash;
-        lastWitnessValue     = permit.witness;
-        lastWitnessSig       = signature;
+        lastWitnessDetailsTo    = transferDetails.to;
+        lastWitnessOwner        = owner;
+        lastWitnessValue        = witness;
+        lastWitnessTypeString   = witnessTypeString;
+        lastWitnessSig          = signature;
         ++witnessCallCount;
 
-        // Simulate the actual token pull
         MockERC20(permit.permitted.token).transferFrom(owner, transferDetails.to, transferDetails.requestedAmount);
     }
 }

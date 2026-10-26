@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {PayRouterTestBase} from "./PayRouter.Base.t.sol";
-import {PayRouter, PermitWitnessTransferFrom} from "../PayRouter.sol";
+import {PayRouter, PermitTransferFrom} from "../PayRouter.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -17,7 +17,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     // ─────────────────────────────────────────────────────────────
 
     function test_CreateOrder_HappyPath_Tier1() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(bob); // Tier-1
         bytes32 orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
@@ -31,7 +31,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     }
 
     function test_CreateOrder_EmitsOrderCreated() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(bob);
         vm.expectEmit(false, true, true, false, address(router)); // orderId unknown; check payer + billerId
@@ -40,23 +40,25 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     }
 
     function test_CreateOrder_PermitWitnessMockCalled() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(bob);
         bytes32 orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
 
         assertEq(permit2.witnessCallCount(), 1);
         assertEq(permit2.lastWitnessOwner(), bob);
-        assertEq(permit2.lastWitnessTypeHash(), router.BILL_ORDER_WITNESS_TYPEHASH());
 
+        // Verify the canonical witnessTypeString was passed (includes TokenPermissions suffix)
+        string memory expectedTypeString = "BillOrderWitness(bytes32 orderId,address billerId,bytes32 accountHash,bytes32 ref) TokenPermissions(address token,uint256 amount)";
+        assertEq(permit2.lastWitnessTypeString(), expectedTypeString);
 
-        // Verify the witness hash encodes billerId, accountHash, ref correctly
+        // Verify the witness hash encodes orderId, billerId, accountHash, ref correctly
         bytes32 expectedWitness = _expectedWitness(orderId, billerAddress, ACCOUNT_HASH, REF);
         assertEq(permit2.lastWitnessValue(), expectedWitness);
     }
 
     function test_CreateOrder_EscrowledInRouter() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
         uint256 routerBefore = usdc.balanceOf(address(router));
 
         vm.prank(bob);
@@ -71,7 +73,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
 
     function test_RevertCreateOrder_InsufficientTierForBillOrder() public {
         // alice is Tier-0, minBillTier=1 → revert
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(alice);
         vm.expectRevert(PayRouter.InsufficientTierForBillOrder.selector);
@@ -80,7 +82,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
 
     function test_RevertCreateOrder_InvalidBiller() public {
         address fakeBiller = makeAddr("fakeBiller");
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(bob);
         vm.expectRevert(PayRouter.InvalidBiller.selector);
@@ -91,7 +93,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
         vm.prank(admin);
         router.pause();
 
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(bob);
         vm.expectRevert(Pausable.EnforcedPause.selector);
@@ -165,6 +167,32 @@ contract PayRouterOrdersTest is PayRouterTestBase {
         vm.prank(operator);
         vm.expectRevert(PayRouter.OrderNotPending.selector);
         router.fulfillOrder(orderId);
+    }
+
+    /// @dev Once the 30-minute reclaim window opens the operator can no longer fulfill.
+    ///      This is the escrow deadline snapshot: fulfillment is impossible after expiry.
+    function test_RevertFulfillOrder_AfterExpiry() public {
+        bytes32 orderId = _createOrderAsBob();
+
+        // Warp exactly to expiry boundary
+        vm.warp(block.timestamp + ORDER_TIMEOUT);
+
+        vm.prank(operator);
+        vm.expectRevert(PayRouter.OrderNotPending.selector);
+        router.fulfillOrder(orderId);
+    }
+
+    function test_FulfillOrder_SucceedsOneSecondBeforeExpiry() public {
+        bytes32 orderId = _createOrderAsBob();
+
+        // One second before the timeout is still within the fulfillment window
+        vm.warp(block.timestamp + ORDER_TIMEOUT - 1);
+
+        uint256 treasuryBefore = usdc.balanceOf(billerTreasury);
+        vm.prank(operator);
+        router.fulfillOrder(orderId);
+
+        assertEq(usdc.balanceOf(billerTreasury), treasuryBefore + ORDER_AMOUNT);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -319,14 +347,14 @@ contract PayRouterOrdersTest is PayRouterTestBase {
         _addBillerViaTimelock(biller2, makeAddr("biller2Treasury"));
 
         // Create two orders with different billerIds
-        PermitWitnessTransferFrom memory permit1 = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit1 = _buildWitnessPermit(ORDER_AMOUNT);
         vm.prank(bob);
         bytes32 orderId1 = router.createOrder(permit1, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
 
         // re-mint so bob has funds for second order
         usdc.mint(bob, ORDER_AMOUNT);
 
-        PermitWitnessTransferFrom memory permit2 = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit2 = _buildWitnessPermit(ORDER_AMOUNT);
         vm.prank(bob);
         bytes32 orderId2 = router.createOrder(permit2, DUMMY_SIG, biller2, ACCOUNT_HASH, REF, ORDER_AMOUNT);
 
@@ -337,7 +365,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     }
 
     function test_WitnessMismatch_DifferentAccountHashChangesWitness() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
         vm.prank(bob);
         bytes32 orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
 
@@ -348,7 +376,7 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     }
 
     function test_WitnessMismatch_DifferentRefChangesWitness() public {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
         vm.prank(bob);
         bytes32 orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
 
@@ -359,11 +387,69 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // CONCURRENT TWO-PAYER TEST
+    // Proves per-payer nonces eliminate nonce interference between payers.
+    // ─────────────────────────────────────────────────────────────
+
+    /// @dev Two payers (bob and carol) each sign an orderId computed from their own nonce.
+    ///      Both transactions succeed with no revert, proving nonce isolation.
+    function test_ConcurrentTwoPayers_NoNonceInterference() public {
+        // bob's nonce is 0, carol's nonce is also 0 — but they are independent mappings
+        uint256 bobNonce   = router.orderNonceOf(bob);
+        uint256 carolNonce = router.orderNonceOf(carol);
+        assertEq(bobNonce,   0, "bob nonce should start at 0");
+        assertEq(carolNonce, 0, "carol nonce should start at 0");
+
+        // bob creates an order
+        PermitTransferFrom memory permitBob = _buildWitnessPermit(ORDER_AMOUNT);
+        vm.prank(bob);
+        bytes32 orderIdBob = router.createOrder(permitBob, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
+
+        // carol creates an order in the SAME block (same block.number, same block.timestamp)
+        // with different biller ref so orderId is distinct even if nonces were equal
+        bytes32 carolRef = keccak256("carol-ref");
+        PermitTransferFrom memory permitCarol = _buildWitnessPermit(ORDER_AMOUNT);
+        vm.prank(carol);
+        bytes32 orderIdCarol = router.createOrder(permitCarol, DUMMY_SIG, billerAddress, ACCOUNT_HASH, carolRef, ORDER_AMOUNT);
+
+        // Both orders are distinct and pending
+        assertTrue(orderIdBob != orderIdCarol, "Order IDs must be distinct");
+        (address payerBob,,,,, PayRouter.OrderStatus statusBob) = router.orders(orderIdBob);
+        (address payerCarol,,,,, PayRouter.OrderStatus statusCarol) = router.orders(orderIdCarol);
+        assertEq(payerBob,   bob);
+        assertEq(payerCarol, carol);
+        assertEq(uint8(statusBob),   uint8(PayRouter.OrderStatus.Pending));
+        assertEq(uint8(statusCarol), uint8(PayRouter.OrderStatus.Pending));
+
+        // bob's nonce advanced to 1; carol's nonce advanced to 1 independently
+        assertEq(router.orderNonceOf(bob),   1, "bob nonce should be 1 after one order");
+        assertEq(router.orderNonceOf(carol), 1, "carol nonce should be 1 after one order");
+    }
+
+    /// @dev Demonstrates orderId uniqueness: same payer, two sequential orders each get a distinct id.
+    function test_SequentialOrders_SamePayer_UniqueIds() public {
+        // First order
+        PermitTransferFrom memory p1 = _buildWitnessPermit(ORDER_AMOUNT);
+        vm.prank(bob);
+        bytes32 id1 = router.createOrder(p1, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
+
+        // Second order — nonce now 1
+        usdc.mint(bob, ORDER_AMOUNT);
+        bytes32 ref2 = keccak256("ref-2");
+        PermitTransferFrom memory p2 = _buildWitnessPermit(ORDER_AMOUNT);
+        vm.prank(bob);
+        bytes32 id2 = router.createOrder(p2, DUMMY_SIG, billerAddress, ACCOUNT_HASH, ref2, ORDER_AMOUNT);
+
+        assertTrue(id1 != id2, "Sequential orders from same payer must have distinct IDs");
+        assertEq(router.orderNonceOf(bob), 2, "bob nonce should be 2 after two orders");
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // INTERNAL HELPERS
     // ─────────────────────────────────────────────────────────────
 
     function _createOrderAsBob() internal returns (bytes32 orderId) {
-        PermitWitnessTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
+        PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
         vm.prank(bob);
         orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
     }

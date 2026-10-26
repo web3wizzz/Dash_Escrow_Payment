@@ -44,7 +44,17 @@ export interface SignatureTransferDetails {
 // Bill order witness type
 // ---------------------------------------------------------------------------
 
-/** Matches BILL_ORDER_WITNESS_TYPEHASH in PayRouter.sol */
+/**
+ * The witness type definition string for BillOrderWitness.
+ * Used as `witnessTypeString` arg to Permit2.permitWitnessTransferFrom.
+ * Per Permit2 spec: must include the witness type AND the TokenPermissions type,
+ * alphabetically ordered, space-separated.
+ * Source: https://github.com/Uniswap/permit2/blob/main/src/libraries/PermitHash.sol
+ */
+export const BILL_ORDER_WITNESS_TYPE_STRING_WITH_TOKEN_PERMISSIONS =
+  'BillOrderWitness(bytes32 orderId,address billerId,bytes32 accountHash,bytes32 ref) TokenPermissions(address token,uint256 amount)'
+
+/** Just the witness type definition, without TokenPermissions suffix (used for EIP-712 types object). */
 export const BILL_ORDER_WITNESS_TYPE_STRING =
   'BillOrderWitness(bytes32 orderId,address billerId,bytes32 accountHash,bytes32 ref)'
 
@@ -86,10 +96,14 @@ export function makeDeadline(offsetSeconds = 1200): bigint {
 // EIP-712 domain for Permit2
 // ---------------------------------------------------------------------------
 
-/** Permit2 domain — Permit2 uses a chain-specific domain with no name/version. */
+/**
+ * Permit2 EIP-712 domain.
+ * Canonical Permit2 domain contains ONLY chainId and verifyingContract —
+ * no name, no version. Adding a name field causes signature mismatch on mainnet.
+ * Source: https://github.com/Uniswap/permit2/blob/main/src/EIP712.sol
+ */
 export function permit2Domain(chainId: number) {
   return {
-    name: 'Permit2',
     chainId,
     verifyingContract: PERMIT2_ADDRESS,
   } as const
@@ -161,9 +175,14 @@ export function buildSendPermit(amount: bigint, _spender: Address): {
   }
 }
 
-/** Build a PermitWitnessTransferFrom for a bill order. Witness is computed by the caller. */
-export function buildOrderPermit(amount: bigint, spender: Address, witness: Hex): {
-  permit: PermitWitnessTransferFrom
+/**
+ * Build a PermitTransferFrom for a bill order (createOrder uses the canonical Permit2 interface).
+ * The witness hash is NOT in the struct; the contract receives it as a separate bytes32 arg
+ * and passes it to Permit2.permitWitnessTransferFrom.
+ * The `_witness` parameter is accepted for backward compat but is intentionally unused here.
+ */
+export function buildOrderPermit(amount: bigint, _spender: Address, _witness: Hex): {
+  permit: PermitTransferFrom
   nonce: bigint
   deadline: bigint
 } {
@@ -174,7 +193,6 @@ export function buildOrderPermit(amount: bigint, spender: Address, witness: Hex)
       permitted: { token: USDC_ADDRESS, amount },
       nonce,
       deadline,
-      witness,
     },
     nonce,
     deadline,

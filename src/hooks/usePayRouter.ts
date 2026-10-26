@@ -9,7 +9,7 @@ import {
   usePublicClient,
   useAccount,
 } from 'wagmi'
-import { type Address, type Hex } from 'viem'
+import { type Address, type Hex, keccak256, encodePacked } from 'viem'
 import { TARGET_CHAIN_ID } from '../config'
 import {
   buildSendPermit,
@@ -22,9 +22,12 @@ import {
   PERMIT_TRANSFER_FROM_TYPES,
   permitWitnessTransferFromTypes,
   BILL_ORDER_WITNESS_TYPE_STRING,
+  generateNonce,
 } from '../lib/permit2'
+// BILL_ORDER_WITNESS_TYPE_STRING is the witness-only definition (no TokenPermissions suffix).
+// The frontend uses this for the EIP-712 types object passed to signTypedData.
+// The contract passes the full string including TokenPermissions to Permit2 on-chain.
 import { hashAccountDetail, hashOrderRef } from '../lib/hash'
-import { generateNonce } from '../lib/permit2'
 
 const PAY_ROUTER_ADDRESS = (
   import.meta.env.VITE_PAY_ROUTER_ADDRESS ?? '0x0000000000000000000000000000000000000000'
@@ -98,13 +101,13 @@ const PAY_ROUTER_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       {
+        // Canonical PermitTransferFrom — no witness field (witness passed separately by contract to Permit2)
         name: 'permit',
         type: 'tuple',
         components: [
           { name: 'permitted', type: 'tuple', components: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }] },
           { name: 'nonce', type: 'uint256' },
           { name: 'deadline', type: 'uint256' },
-          { name: 'witness', type: 'bytes32' },
         ],
       },
       { name: 'sig', type: 'bytes' },
@@ -121,6 +124,13 @@ const PAY_ROUTER_ABI = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'orderId', type: 'bytes32' }],
     outputs: [],
+  },
+  {
+    name: 'orderNonceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'payer', type: 'address' }],
+    outputs: [{ name: 'nonce', type: 'uint256' }],
   },
 ] as const
 
@@ -287,6 +297,7 @@ export function useRequestPay() {
 
 export function useCreateOrder() {
   const { address } = useAccount()
+  const publicClient = usePublicClient({ chainId: TARGET_CHAIN_ID })
   const { writeContractAsync, data: hash, isPending, isError, error, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
@@ -296,25 +307,48 @@ export function useCreateOrder() {
     amount: bigint
     signTypedDataAsync: (args: object) => Promise<Hex>
   }) => {
-    if (!address) throw new Error('Wallet not connected')
+    if (!address || !publicClient) throw new Error('Wallet not connected')
     const { billerId, accountDetail, amount, signTypedDataAsync } = params
 
     // Hash account detail — PII never leaves the browser unhashed
     const accountHash = hashAccountDetail(accountDetail, address, billerId)
 
-    // Temporary orderId placeholder — actual orderId is derived on-chain,
-    // but we need a ref for the witness. Use a client-side nonce as ref.
-    const nonce = generateNonce()
-    const ref = hashOrderRef(address, billerId, accountHash, nonce)
+    // A unique ref is derived client-side. It does NOT need to be pre-known by the contract;
+    // it is just an opaque bytes32 committed to in the witness.
+    const randomNonce = generateNonce()
+    const ref = hashOrderRef(address, billerId, accountHash, randomNonce)
 
-    // Compute witness — will be validated by Permit2 on-chain
-    // orderId is 0x0 here as a placeholder; the contract recomputes and validates it
-    const placeholderOrderId: Hex = `0x${'00'.repeat(32)}`
-    const witness = computeBillOrderWitness(placeholderOrderId, billerId, accountHash, ref)
+    // Read the per-payer order nonce from the contract.
+    // orderId = keccak256(abi.encodePacked(msg.sender, billerId, accountHash, ref, _orderNonces[msg.sender]))
+    // Per-payer nonces mean two users can sign simultaneously without interference.
+    // The nonce is incremented on-chain after this tx — safe to read and sign immediately.
+    const currentNonce = await publicClient.readContract({
+      address: PAY_ROUTER_ADDRESS,
+      abi: PAY_ROUTER_ABI,
+      functionName: 'orderNonceOf',
+      args: [address],
+    })
 
+    // Mirror the contract's orderId derivation exactly:
+    // keccak256(abi.encodePacked(msg.sender, billerId, accountHash, ref, _orderNonces[msg.sender]))
+    const orderId = keccak256(
+      encodePacked(
+        ['address', 'address', 'bytes32', 'bytes32', 'uint256'],
+        [address, billerId, accountHash, ref, currentNonce],
+      ),
+    )
+
+    // Compute the witness hash: keccak256(abi.encode(TYPEHASH, orderId, billerId, accountHash, ref))
+    const witness = computeBillOrderWitness(orderId, billerId, accountHash, ref)
+
+    // Build the Permit2 permit (canonical PermitTransferFrom — no witness field in struct).
+    // The witness hash is passed as a separate arg to the contract, which forwards it to Permit2.
     const { permit, deadline } = buildOrderPermit(amount, PAY_ROUTER_ADDRESS, witness)
-    const nonceVal = permit.nonce
+    const permit2Nonce = permit.nonce
 
+    // Sign using the canonical Permit2 EIP-712 layout for witness transfers.
+    // The message includes the witness object (not its hash) so the wallet can display it.
+    // Permit2 computes the witness hash internally when verifying.
     const sig = await signTypedDataAsync({
       domain: permit2Domain(TARGET_CHAIN_ID),
       types: permitWitnessTransferFromTypes(BILL_ORDER_WITNESS_TYPE_STRING),
@@ -322,17 +356,26 @@ export function useCreateOrder() {
       message: {
         permitted: permit.permitted,
         spender: PAY_ROUTER_ADDRESS,
-        nonce: nonceVal,
+        nonce: permit2Nonce,
         deadline,
-        witness: { orderId: placeholderOrderId, billerId, accountHash, ref },
+        witness: { orderId, billerId, accountHash, ref },
       },
     })
 
+    // Pass a plain PermitTransferFrom to the contract (no witness field).
+    // The contract computes the witness hash from its args and passes it to Permit2 separately.
     return writeContractAsync({
       address: PAY_ROUTER_ADDRESS,
       abi: PAY_ROUTER_ABI,
       functionName: 'createOrder',
-      args: [{ permitted: permit.permitted, nonce: nonceVal, deadline, witness }, sig, billerId, accountHash, ref, amount],
+      args: [
+        { permitted: permit.permitted, nonce: permit2Nonce, deadline },
+        sig,
+        billerId,
+        accountHash,
+        ref,
+        amount,
+      ],
       chainId: TARGET_CHAIN_ID,
     })
   }

@@ -45,3 +45,15 @@ export const DEFAULT_FEE_BPS = 0;
 
 /** Maximum platform fee enforced in contract code */
 export const MAX_FEE_BPS = 200;
+
+// ---------------------------------------------------------------------------
+// ScheduledPayouts constants (mirrors ScheduledPayouts.sol — keep in sync)
+// ---------------------------------------------------------------------------
+
+/**
+ * Witness typehash for ScheduledPayouts.deposit.
+ * Mirrors SCHEDULE_WITNESS_TYPEHASH in ScheduledPayouts.sol exactly.
+ * Used by the frontend to compute the witness before signing.
+ */
+export const SCHEDULE_DEPOSIT_WITNESS_TYPEHASH =
+  'ScheduleWitness(bytes32 scheduleId,address recipient,uint8 scheduleType,bool revocable,uint64 startTime,uint64 endTime,uint64 cliffEnd,uint64 period,uint128 periodAmount,uint128 totalAmount)' as const;
