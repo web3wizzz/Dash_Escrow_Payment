@@ -48,9 +48,24 @@ PAUSER_ROLE=<THIRD_ADDRESS>          # grant after deploy
 
 ## Security Notes
 - See AUDIT.md for documented intentional design choices (Permit2 max-approval, block.timestamp, no-timelock-at-genesis).
-- Security review completed: docs/security-review.md. 2 Medium issues fixed (M-01: timelock overwrite, M-02: ScheduledPayouts missing tier limits). No Critical/High open issues.
-- 201 unit tests (forge test --via-ir), 0 failures.
+- Security review Rev 2 completed: docs/security-review.md.
+  - Fixed: M-01 (timelock overwrite), M-02 (ScheduledPayouts missing tier limits)
+  - Fixed: D-01 (deploy script grantRole reverts when deployer != admin — pattern corrected to grant-transfer-renounce)
+  - Fixed: D-02 (Tier 1 daily cap was 20,000,000 USDC, corrected to 20,000 USDC = 20_000_000_000)
+  - Fixed: D-03 (Tier 2 per-payment cap was 20,000,000 USDC, corrected to 20,000 USDC = 20_000_000_000)
+  - Documented: D-04 (ScheduledPayouts has no daily limit — intentional, see security-review.md)
+  - Verified: Permit2 and USDC have bytecode on Arc testnet at canonical addresses.
+  - No Critical/High open issues.
+- 217 unit tests (forge test --via-ir), 0 failures.
 - Frontend: 0 lint errors, 0 TypeScript errors.
+
+## Tier Cap Values (corrected)
+| Tier | Per-payment | Daily |
+|------|------------|-------|
+| 0 | 5 USDC (5_000_000) | 50 USDC (50_000_000) |
+| 1 | 100 USDC (100_000_000) | 20,000 USDC (20_000_000_000) |
+| 2 | 20,000 USDC (20_000_000_000) | unlimited (0 = no cap) |
+| Global cap | 25 USDC (25_000_000) | — |
 
 ## Files
 - `config/brand.ts` — sole source of product name and all constructor constants

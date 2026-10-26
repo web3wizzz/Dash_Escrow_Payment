@@ -27,8 +27,8 @@ export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000' as cons
 // Tier limits in 6-decimal USDC units
 export const TIER_LIMITS = {
   0: { perPayment: 5_000_000n,          daily: 50_000_000n },
-  1: { perPayment: 100_000_000n,        daily: 20_000_000_000_000n },
-  2: { perPayment: 20_000_000_000_000n, daily: 2n ** 256n - 1n }, // type(uint256).max
+  1: { perPayment: 100_000_000n,        daily: 20_000_000_000n },    // 20,000 USDC/day
+  2: { perPayment: 20_000_000_000n,     daily: 2n ** 256n - 1n }, // 20,000 USDC/payment, unlimited/day
 } as const;
 
 /** Global ceiling applied on top of tier limits: 25 USDC */

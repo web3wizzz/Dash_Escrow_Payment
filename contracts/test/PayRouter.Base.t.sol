@@ -31,8 +31,8 @@ abstract contract PayRouterTestBase is Test {
     uint96 internal constant T0_PER_PAYMENT  = 5_000_000;      // 5 USDC
     uint96 internal constant T0_DAILY        = 50_000_000;     // 50 USDC
     uint96 internal constant T1_PER_PAYMENT  = 100_000_000;    // 100 USDC
-    uint96 internal constant T1_DAILY        = 20_000_000_000_000; // very large
-    uint96 internal constant T2_PER_PAYMENT  = 20_000_000_000_000; // very large
+    uint96 internal constant T1_DAILY        = 20_000_000_000;     // 20,000 USDC/day (spec)
+    uint96 internal constant T2_PER_PAYMENT  = 20_000_000_000;     // 20,000 USDC/payment (spec)
     uint96 internal constant T2_DAILY        = 0;              // unlimited
     uint96 internal constant GLOBAL_CAP      = 25_000_000;     // 25 USDC
     uint16 internal constant FEE_BPS_INIT    = 0;
