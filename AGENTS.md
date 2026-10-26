@@ -4,7 +4,7 @@
 Non-custodial USDC spending app on Arc mainnet. Users send USDC by handle or address, request payment via link/QR, scan QR to pay, and pay bills via a sandboxed biller flow. All payment flows use Permit2 SignatureTransfer (exact amount, single-use nonce). Identity verification and billers are sandboxed/mock, clearly labeled in the UI.
 
 ## Deployed Contracts
-None deployed yet. Contracts are built and all 201 tests pass. Ready for Arc testnet deployment.
+None deployed yet. Contracts are built and all 224 tests pass. Ready for Arc testnet deployment.
 
 Deploy order: HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts.
 Use `contracts/script/Deploy.s.sol` (reads env vars, grants all roles, prints VITE_* lines).
@@ -31,7 +31,7 @@ VITE_FEE_WALLET_ADDRESS=
 From `config/brand.ts`:
 - PERMIT2_ADDRESS: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
 - USDC_ADDRESS: `0x3600000000000000000000000000000000000000`
-- TIER_LIMITS: Tier0={5_000_000, 50_000_000}, Tier1={100_000_000, 20_000_000_000_000}, Tier2={20_000_000_000_000, 0}
+- TIER_LIMITS: Tier0={5_000_000, 50_000_000}, Tier1={100_000_000, 20_000_000_000}, Tier2={20_000_000_000, 0}
 - GLOBAL_PER_PAYMENT_CAP: 25_000_000 (25 USDC)
 - MIN_BILL_TIER: 1
 - ORDER_TIMEOUT_SECONDS: 1800 (30 min)

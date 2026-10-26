@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+contracts/out/
+contracts/cache/
+dist/
+build/
+
+# Foundry broadcast artifacts (contain tx hashes and gas; commit selectively if desired)
+broadcast/
+
+# Environment variables — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Circle credentials
+.circle/
+
+# Arc Studio runtime logs (sandbox only)
+console.jsonl
+traces.jsonl
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Bun lockfile is intentionally committed (bun.lock)
