@@ -160,6 +160,7 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
         address handleRegistry_,
         address permit2_,
         address initialAdmin,
+        address feeWallet_,
         TierConfig memory tier0Config,
         TierConfig memory tier1Config,
         TierConfig memory tier2Config,
@@ -174,7 +175,8 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
             kycRegistry_ == address(0) ||
             handleRegistry_ == address(0) ||
             permit2_ == address(0) ||
-            initialAdmin == address(0)
+            initialAdmin == address(0) ||
+            feeWallet_ == address(0)
         ) {
             revert ZeroAddress();
         }
@@ -197,7 +199,7 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
         minBillTier = minBillTier_;
         orderTimeoutSeconds = orderTimeoutSeconds_;
         feeBps = initialFeeBps;
-        feeWallet = initialAdmin;
+        feeWallet = feeWallet_;
 
         for (uint256 i = 0; i < initialBillers.length; i++) {
             address b = initialBillers[i].biller;

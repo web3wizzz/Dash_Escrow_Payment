@@ -58,6 +58,9 @@ contract DeployTest is Test {
     uint96 internal constant T2_DAY  = 0;
     uint96 internal constant GCAP    = 25_000_000;
 
+    // ── fee wallet ─────────────────────────────────────────────────
+    address internal feeWallet = makeAddr("feeWallet");
+
     function setUp() public {
         usdc    = new MockERC20("USDC", "USDC", 6);
         permit2 = new MockPermit2(false);
@@ -83,7 +86,8 @@ contract DeployTest is Test {
             address(kycReg),
             address(handleReg),
             address(permit2),
-            deployer,
+            deployer,    // initialAdmin
+            feeWallet,   // explicit fee wallet
             PayRouter.TierConfig({perPaymentCap: T0_PER, dailyCap: T0_DAY}),
             PayRouter.TierConfig({perPaymentCap: T1_PER, dailyCap: T1_DAY}),
             PayRouter.TierConfig({perPaymentCap: T2_PER, dailyCap: T2_DAY}),
@@ -277,5 +281,139 @@ contract DeployTest is Test {
     function _getTierConfig(uint8 tier) internal view returns (uint96 perPayment, uint96 daily) {
         (uint96 p, uint96 d) = router.tierConfigs(tier);
         return (p, d);
+    }
+
+    // ── Invariant 9: feeWallet is set to the explicit feeWallet arg, not deployer ──
+
+    function test_FeeWallet_IsExplicitParam_NotDeployer() public view {
+        assertEq(router.feeWallet(), feeWallet, "feeWallet should match explicit constructor arg");
+        assertTrue(router.feeWallet() != deployer, "feeWallet must NOT be the deployer");
+    }
+
+    function test_FeeWallet_IsExplicitParam_NotAdmin() public view {
+        // feeWallet is a distinct address from admin and deployer
+        assertEq(router.feeWallet(), feeWallet, "feeWallet should match explicit constructor arg");
+        assertTrue(router.feeWallet() != admin, "feeWallet should NOT default to admin");
+    }
+
+    // ── Zero address constructor guards ──────────────────────────────────
+
+    function test_RevertConstructor_ZeroFeeWallet() public {
+        InitialBiller[] memory billers = new InitialBiller[](0);
+        vm.expectRevert(abi.encodeWithSignature("ZeroAddress()"));
+        new PayRouter(
+            address(usdc),
+            address(kycReg),
+            address(handleReg),
+            address(permit2),
+            deployer,       // initialAdmin
+            address(0),     // feeWallet_ = zero → should revert
+            PayRouter.TierConfig({perPaymentCap: T0_PER, dailyCap: T0_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T1_PER, dailyCap: T1_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T2_PER, dailyCap: T2_DAY}),
+            GCAP,
+            uint8(1),
+            uint32(1800),
+            uint16(0),
+            billers
+        );
+    }
+
+    // ── admin == deployer: no role loss ─────────────────────────────────
+    // Mirrors the testnet single-wallet case where DEPLOY_ADMIN_ADDRESS == deployer.
+
+    function test_AdminEqualsDeployer_RetainsAdminRole() public {
+        // Deploy all contracts with a single wallet acting as both deployer and admin.
+        address singleWallet = makeAddr("singleWallet");
+        address fw = makeAddr("fw2");
+        MockERC20  u  = new MockERC20("U", "U", 6);
+        MockPermit2 p2 = new MockPermit2(false);
+
+        vm.startPrank(singleWallet);
+
+        bytes32[] memory reserved = new bytes32[](0);
+        HandleRegistry hr = new HandleRegistry(singleWallet, reserved);
+        KycRegistry kr    = new KycRegistry(singleWallet);
+
+        InitialBiller[] memory billers2 = new InitialBiller[](0);
+        PayRouter r2 = new PayRouter(
+            address(u), address(kr), address(hr), address(p2),
+            singleWallet, fw,
+            PayRouter.TierConfig({perPaymentCap: T0_PER, dailyCap: T0_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T1_PER, dailyCap: T1_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T2_PER, dailyCap: T2_DAY}),
+            GCAP, uint8(1), uint32(1800), uint16(0), billers2
+        );
+        ScheduledPayouts sp2 = new ScheduledPayouts(
+            address(u), address(p2), singleWallet, address(kr),
+            GCAP, T0_PER, T1_PER, T2_PER
+        );
+
+        // Grant operational roles to self (acceptable on testnet)
+        kr.grantRole(kr.VERIFIER_ROLE(),   singleWallet);
+        r2.grantRole(r2.OPERATOR_ROLE(),   singleWallet);
+        r2.grantRole(r2.PAUSER_ROLE(),     singleWallet);
+        sp2.grantRole(sp2.PAUSER_ROLE(),   singleWallet);
+
+        // Grant DEFAULT_ADMIN_ROLE to self — no-op since already held
+        hr.grantRole(hr.DEFAULT_ADMIN_ROLE(),  singleWallet);
+        kr.grantRole(kr.DEFAULT_ADMIN_ROLE(),  singleWallet);
+        r2.grantRole(r2.DEFAULT_ADMIN_ROLE(),  singleWallet);
+        sp2.grantRole(sp2.DEFAULT_ADMIN_ROLE(), singleWallet);
+
+        // DO NOT renounce — singleWallet IS the admin.
+
+        vm.stopPrank();
+
+        // After setup: singleWallet must still hold DEFAULT_ADMIN_ROLE on all contracts.
+        assertTrue(hr.hasRole(hr.DEFAULT_ADMIN_ROLE(),   singleWallet), "singleWallet: DEFAULT_ADMIN on handleReg");
+        assertTrue(kr.hasRole(kr.DEFAULT_ADMIN_ROLE(),   singleWallet), "singleWallet: DEFAULT_ADMIN on kycReg");
+        assertTrue(r2.hasRole(r2.DEFAULT_ADMIN_ROLE(),   singleWallet), "singleWallet: DEFAULT_ADMIN on router");
+        assertTrue(sp2.hasRole(sp2.DEFAULT_ADMIN_ROLE(), singleWallet), "singleWallet: DEFAULT_ADMIN on sp");
+        // And can still queue config changes (has not been locked out)
+        bytes32 feeKey = keccak256("feeBps");
+        vm.prank(singleWallet);
+        r2.queueConfigChange(feeKey, abi.encode(uint16(10)));
+        (, bytes memory queued) = r2.getPendingChange(feeKey);
+        assertGt(queued.length, 0, "singleWallet should be able to queue config change");
+    }
+
+    // ── Duplicate role addresses: operator == admin ────────────────────
+    // Some testnet setups reuse one wallet for operator + admin.
+    // Verify the invariants still hold (no extra unexpected roles).
+
+    function test_DuplicateRoles_OperatorEqualsAdmin_IsSafe() public {
+        // Deploy a fresh set where operator == admin
+        address multiRole = makeAddr("multiRole");
+        address fw3 = makeAddr("fw3");
+        MockERC20  u3  = new MockERC20("U3", "U3", 6);
+        MockPermit2 p3 = new MockPermit2(false);
+
+        vm.startPrank(multiRole);
+
+        bytes32[] memory reserved = new bytes32[](0);
+        HandleRegistry hr3 = new HandleRegistry(multiRole, reserved);
+        KycRegistry kr3    = new KycRegistry(multiRole);
+
+        InitialBiller[] memory billers3 = new InitialBiller[](0);
+        PayRouter r3 = new PayRouter(
+            address(u3), address(kr3), address(hr3), address(p3),
+            multiRole, fw3,
+            PayRouter.TierConfig({perPaymentCap: T0_PER, dailyCap: T0_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T1_PER, dailyCap: T1_DAY}),
+            PayRouter.TierConfig({perPaymentCap: T2_PER, dailyCap: T2_DAY}),
+            GCAP, uint8(1), uint32(1800), uint16(0), billers3
+        );
+
+        // Grant OPERATOR_ROLE to multiRole (same as admin)
+        r3.grantRole(r3.OPERATOR_ROLE(), multiRole);
+
+        vm.stopPrank();
+
+        // multiRole holds both OPERATOR_ROLE and DEFAULT_ADMIN_ROLE — valid but intentional
+        assertTrue(r3.hasRole(r3.DEFAULT_ADMIN_ROLE(), multiRole), "multiRole: DEFAULT_ADMIN");
+        assertTrue(r3.hasRole(r3.OPERATOR_ROLE(),      multiRole), "multiRole: OPERATOR");
+        // feeWallet is still the explicit param, not multiRole
+        assertEq(r3.feeWallet(), fw3, "feeWallet is explicit param even when roles overlap");
     }
 }

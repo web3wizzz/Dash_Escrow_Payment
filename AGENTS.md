@@ -48,15 +48,18 @@ PAUSER_ROLE=<THIRD_ADDRESS>          # grant after deploy
 
 ## Security Notes
 - See AUDIT.md for documented intentional design choices (Permit2 max-approval, block.timestamp, no-timelock-at-genesis).
-- Security review Rev 2 completed: docs/security-review.md.
+- Security review Rev 3 completed: docs/security-review.md.
   - Fixed: M-01 (timelock overwrite), M-02 (ScheduledPayouts missing tier limits)
-  - Fixed: D-01 (deploy script grantRole reverts when deployer != admin — pattern corrected to grant-transfer-renounce)
-  - Fixed: D-02 (Tier 1 daily cap was 20,000,000 USDC, corrected to 20,000 USDC = 20_000_000_000)
-  - Fixed: D-03 (Tier 2 per-payment cap was 20,000,000 USDC, corrected to 20,000 USDC = 20_000_000_000)
+  - Fixed: D-01 (deploy script grantRole reverts when deployer != admin)
+  - Fixed: D-02/D-03 (Tier 1 daily and Tier 2 per-payment caps were 1000× too large)
+  - Fixed: E-01 (admin==deployer footgun — renounce now guarded, contracts stay adminless-proof)
+  - Fixed: E-02 (feeWallet defaulted to deployer — now explicit constructor param)
+  - Fixed: E-03 (brand.ts Tier 2 daily was 2^256-1, now 0 matching contract convention)
   - Documented: D-04 (ScheduledPayouts has no daily limit — intentional, see security-review.md)
   - Verified: Permit2 and USDC have bytecode on Arc testnet at canonical addresses.
+  - Dry-run simulation passed: all 4 contracts, roles, gas ~2.22 USDC on Arc testnet.
   - No Critical/High open issues.
-- 217 unit tests (forge test --via-ir), 0 failures.
+- 224 unit tests (forge test --via-ir), 0 failures.
 - Frontend: 0 lint errors, 0 TypeScript errors.
 
 ## Tier Cap Values (corrected)
@@ -65,7 +68,12 @@ PAUSER_ROLE=<THIRD_ADDRESS>          # grant after deploy
 | 0 | 5 USDC (5_000_000) | 50 USDC (50_000_000) |
 | 1 | 100 USDC (100_000_000) | 20,000 USDC (20_000_000_000) |
 | 2 | 20,000 USDC (20_000_000_000) | unlimited (0 = no cap) |
-| Global cap | 25 USDC (25_000_000) | — |
+| Global cap | 25 USDC (25_000_000) | overrides all tiers |
+
+## feeWallet
+PayRouter.feeWallet is set via explicit constructor param `feeWallet_` (6th arg).
+Deploy script passes DEPLOY_FEE_WALLET_ADDRESS (defaults to DEPLOY_ADMIN_ADDRESS).
+Can be updated post-deploy via 24h timelocked queueConfigChange(keccak256("feeWallet"), abi.encode(newAddr)).
 
 ## Files
 - `config/brand.ts` — sole source of product name and all constructor constants

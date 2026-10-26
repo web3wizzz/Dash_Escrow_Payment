@@ -89,13 +89,30 @@ contract Deploy is Script {
         require(operator != address(0), "DEPLOY_OPERATOR_ADDRESS not set");
         require(verifier != address(0), "DEPLOY_VERIFIER_ADDRESS not set");
         require(pauser   != address(0), "DEPLOY_PAUSER_ADDRESS not set");
+        require(feeWallet != address(0), "DEPLOY_FEE_WALLET_ADDRESS resolved to zero");
+
+        // ── Warn when deployer == admin ───────────────────────────────────────
+        // When admin == msg.sender the grant-then-renounce pattern collapses:
+        // grantRole(admin, admin) is a no-op (already held), and then
+        // renounceRole(admin, msg.sender) removes the ONLY admin holder,
+        // leaving every contract permanently adminless.
+        // We detect this at startup and skip the renounce step in that case.
+        // On testnet this is acceptable; on mainnet the deployer and admin
+        // MUST be separate wallets (deployer = hot key, admin = multisig).
+        bool deployerIsAdmin = (msg.sender == admin);
 
         console2.log("=== Dash deploy ===");
-        console2.log("Deployer (msg.sender): will hand off admin after setup");
+        if (deployerIsAdmin) {
+            console2.log("WARNING: deployer == admin. Admin role will NOT be renounced from deployer.");
+            console2.log("         Acceptable for testnet. Use separate wallets on mainnet.");
+        } else {
+            console2.log("Deployer (msg.sender): will hand off admin after setup");
+        }
         console2.log("Admin (final):  ", admin);
         console2.log("Operator:       ", operator);
         console2.log("Verifier:       ", verifier);
         console2.log("Pauser:         ", pauser);
+        console2.log("FeeWallet:      ", feeWallet);
         console2.log("USDC:           ", usdcAddr);
         console2.log("Permit2:        ", permit2Addr);
 
@@ -124,7 +141,8 @@ contract Deploy is Script {
             address(kycReg),
             address(handleReg),
             permit2Addr,
-            msg.sender,
+            msg.sender,   // initialAdmin — deployer, so grantRole calls succeed
+            feeWallet,    // explicit fee recipient, NOT tied to initialAdmin
             PayRouter.TierConfig({perPaymentCap: T0_PER_PAYMENT, dailyCap: T0_DAILY}),
             PayRouter.TierConfig({perPaymentCap: T1_PER_PAYMENT, dailyCap: T1_DAILY}),
             PayRouter.TierConfig({perPaymentCap: T2_PER_PAYMENT, dailyCap: T2_DAILY}),
@@ -162,30 +180,30 @@ contract Deploy is Script {
         sp.grantRole(sp.PAUSER_ROLE(), pauser);
 
         // ── Transfer DEFAULT_ADMIN_ROLE to designated admin ───────────────────
-        // Grant admin role to the designated admin wallet on every contract.
+        // When deployer == admin this grantRole is a no-op (already held).
+        // When deployer != admin this grants a second admin holder before we renounce.
         handleReg.grantRole(handleReg.DEFAULT_ADMIN_ROLE(), admin);
         kycReg.grantRole(kycReg.DEFAULT_ADMIN_ROLE(),       admin);
         router.grantRole(router.DEFAULT_ADMIN_ROLE(),       admin);
         sp.grantRole(sp.DEFAULT_ADMIN_ROLE(),               admin);
 
-        // ── Revoke all roles from deployer (msg.sender) ──────────────────────
-        // Constructors grant DEFAULT_ADMIN_ROLE and (on PayRouter/ScheduledPayouts)
-        // PAUSER_ROLE to initialAdmin (msg.sender here). Revoke both so the
-        // deployer ends with zero roles on every contract.
-        handleReg.renounceRole(handleReg.DEFAULT_ADMIN_ROLE(), msg.sender);
-        kycReg.renounceRole(kycReg.DEFAULT_ADMIN_ROLE(),       msg.sender);
-        // PayRouter grants DEFAULT_ADMIN_ROLE + PAUSER_ROLE to initialAdmin
-        router.renounceRole(router.PAUSER_ROLE(),          msg.sender);
-        router.renounceRole(router.DEFAULT_ADMIN_ROLE(),   msg.sender);
-        // ScheduledPayouts grants DEFAULT_ADMIN_ROLE + PAUSER_ROLE to initialAdmin
-        sp.renounceRole(sp.PAUSER_ROLE(),          msg.sender);
-        sp.renounceRole(sp.DEFAULT_ADMIN_ROLE(),   msg.sender);
-
-        // Note on feeWallet: PayRouter sets feeWallet = initialAdmin (msg.sender
-        // here). Since msg.sender just renounced DEFAULT_ADMIN_ROLE, feeWallet
-        // must be changed to the intended fee wallet via the 24h timelock after
-        // deploy. See security-review.md L-03.
-        // Command to queue: router.queueConfigChange(CHANGE_FEE_WALLET, abi.encode(feeWallet))
+        // ── Revoke all deployer roles (only when deployer != admin) ──────────
+        // When deployer == admin: DO NOT renounce. The deployer IS the admin;
+        // renouncing would leave every contract permanently adminless.
+        // When deployer != admin: renounce DEFAULT_ADMIN_ROLE and PAUSER_ROLE
+        // from the deployer so it ends with zero roles on every contract.
+        if (!deployerIsAdmin) {
+            handleReg.renounceRole(handleReg.DEFAULT_ADMIN_ROLE(), msg.sender);
+            kycReg.renounceRole(kycReg.DEFAULT_ADMIN_ROLE(),       msg.sender);
+            // PayRouter grants DEFAULT_ADMIN_ROLE + PAUSER_ROLE to initialAdmin
+            router.renounceRole(router.PAUSER_ROLE(),          msg.sender);
+            router.renounceRole(router.DEFAULT_ADMIN_ROLE(),   msg.sender);
+            // ScheduledPayouts grants DEFAULT_ADMIN_ROLE + PAUSER_ROLE to initialAdmin
+            sp.renounceRole(sp.PAUSER_ROLE(),          msg.sender);
+            sp.renounceRole(sp.DEFAULT_ADMIN_ROLE(),   msg.sender);
+        }
+        // Note: when deployer == admin, deployer retains DEFAULT_ADMIN_ROLE and
+        // PAUSER_ROLE. This is expected — the deployer IS the designated admin.
 
         vm.stopBroadcast();
 
@@ -198,10 +216,12 @@ contract Deploy is Script {
         console2.log(string(abi.encodePacked("VITE_SCHEDULED_PAYOUTS_ADDRESS=", _toHex(address(sp)))));
         console2.log(string(abi.encodePacked("VITE_FEE_WALLET_ADDRESS=",        _toHex(feeWallet))));
         console2.log("");
-        console2.log("=== Post-deploy: queue feeWallet change via timelock ===");
-        console2.log("Run as admin after 24h:");
-        console2.log("  router.queueConfigChange(keccak256('feeWallet'), abi.encode(<feeWallet>))");
-        console2.log("  // then after 24h: router.executeConfigChange(keccak256('feeWallet'))");
+        if (deployerIsAdmin) {
+            console2.log("NOTE: deployer == admin. Admin retains DEFAULT_ADMIN_ROLE + PAUSER_ROLE.");
+            console2.log("      Use separate wallets on mainnet.");
+        } else {
+            console2.log("NOTE: Deployer has zero roles on all contracts after this deploy.");
+        }
     }
 
     /// @dev Convert address to "0x..." hex string for console output.

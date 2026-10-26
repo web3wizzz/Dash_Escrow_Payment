@@ -25,7 +25,7 @@ abstract contract PayRouterTestBase is Test {
     address internal carol          = makeAddr("carol");   // Tier-2
     address internal billerAddress  = makeAddr("biller");
     address internal billerTreasury = makeAddr("billerTreasury");
-    address internal feeWalletAddr;   // set to admin in constructor
+    address internal feeWalletAddr  = makeAddr("feeWallet"); // explicit fee wallet
 
     // ── tier caps (mirror spec) ───────────────────────────────────
     uint96 internal constant T0_PER_PAYMENT  = 5_000_000;      // 5 USDC
@@ -66,7 +66,8 @@ abstract contract PayRouterTestBase is Test {
             address(kyc),
             address(handleReg),
             address(permit2),
-            admin,
+            admin,           // initialAdmin
+            feeWalletAddr,   // explicit fee wallet — separate from initialAdmin
             PayRouter.TierConfig({perPaymentCap: T0_PER_PAYMENT, dailyCap: T0_DAILY}),
             PayRouter.TierConfig({perPaymentCap: T1_PER_PAYMENT, dailyCap: T1_DAILY}),
             PayRouter.TierConfig({perPaymentCap: T2_PER_PAYMENT, dailyCap: T2_DAILY}),
@@ -76,7 +77,6 @@ abstract contract PayRouterTestBase is Test {
             FEE_BPS_INIT,
             initialBillers
         );
-        feeWalletAddr = admin; // PayRouter sets feeWallet = initialAdmin
 
         // 6. Grant operator role — read role constant BEFORE prank so the view call
         //    doesn't consume the prank token.

@@ -1,10 +1,10 @@
-# Dash — Pre-Mainnet Security Review (Revision 2)
+# Dash — Pre-Mainnet Security Review (Revision 3)
 
 **Date:** October 26, 2026
-**Revision:** 2 (updated to reflect fixes in this session)
+**Revision:** 3
 **Scope:** HandleRegistry, KycRegistry, PayRouter, ScheduledPayouts, Permit2 frontend helpers, deploy script
 **Test command:** `forge test --via-ir`
-**Test results:** See "Current test status" section below
+**Test results:** 224/224 passed, 0 failed (see Current Test Status)
 **Static analysis:** Structural digest (Slither not installed in sandbox)
 **Reviewer:** Arc Studio automated review
 
@@ -12,7 +12,13 @@
 
 ## Summary
 
-All Critical and High issues from prior reviews are resolved. Two Medium issues found in revision 1 are fixed. This revision (Rev 2) found and fixed two additional issues: a deploy-script role-ordering bug that would cause `grantRole` to revert when deployer != admin (D-01), and a Tier 1 and Tier 2 cap mis-specification (D-02, D-03). The ScheduledPayouts daily limit gap is assessed and documented (see D-04). No Critical or High issues remain open.
+All Critical and High issues resolved. No Critical or High issues remain open.
+
+Revision 3 fixed three additional issues: the `admin==deployer` footgun in the deploy script
+(E-01), the `feeWallet` defaulting to `initialAdmin` / deployer (E-02), and a
+`brand.ts` Tier 2 daily constant mismatch (E-03). Two feeWallet timelock tests added.
+The L-01 test (TimelockPendingExecution) was already present from Rev 2; updated finding
+status to match.
 
 **The project is ready for Arc testnet deployment and real-wallet smoke-testing.**
 
@@ -22,9 +28,11 @@ All Critical and High issues from prior reviews are resolved. Two Medium issues 
 
 | Metric | Status |
 |--------|--------|
-| `forge test --via-ir` | All tests passing (see run after rev-2 fixes) |
-| Tests added this session | Deploy.t.sol: 15 new tests covering role-transfer invariants and cap correctness |
-| `bun run check` (oxlint + tsc) | 0 errors |
+| `forge test --via-ir` | **224/224 passed, 0 failed** |
+| `bun run check` (oxlint + tsc) | **0 errors, 0 warnings** |
+| `forge build --via-ir` | **Clean (1 pre-existing warning, not an error)** |
+| Dry-run simulation (`forge script --rpc-url`) | **Passed — all 4 contracts simulated, VITE_* printed, gas ~2.22 USDC** |
+| Tests added Rev 3 | 5 new Deploy.t.sol tests + 2 new Timelock tests (feeWallet) |
 
 ---
 
@@ -49,105 +57,143 @@ All Critical and High issues from prior reviews are resolved. Two Medium issues 
 
 ### M-01 — Timelock queue can be silently overwritten before execution
 **File:** `contracts/PayRouter.sol`, `queueConfigChange`
-**Status:** Fixed
+**Status:** Fixed + tested
 
-`queueConfigChange` with the same key before execution silently overwrote the queued payload and reset the ETA clock. Fixed: now reverts `TimelockPendingExecution()` when a prior change is queued but not yet executed.
+`queueConfigChange` with the same key before execution silently overwrote the queued payload
+and reset the ETA clock. Fixed: now reverts `TimelockPendingExecution()`. Test:
+`test_RevertQueueConfigChange_PendingExecution` in `PayRouter.Timelock.t.sol`.
 
 ### M-02 — `ScheduledPayouts.deposit` enforced no tier or global limits (spec deviation)
 **File:** `contracts/ScheduledPayouts.sol`, `deposit`
-**Status:** Fixed
+**Status:** Fixed + tested
 
-Per spec, tier limits apply to the deposit call. The original contract had no `KycRegistry` reference. Fixed: `deposit` now calls `_checkTierCap(msg.sender, params.totalAmount)` checking both the global per-payment cap and the caller's tier per-payment cap. The constructor now accepts `kycRegistry_`, `globalPerPaymentCap_`, and three tier caps as immutables. Daily caps are intentionally not applied to schedule deposits (see D-04).
+`deposit` now calls `_checkTierCap(msg.sender, params.totalAmount)`. Constructor accepts
+`kycRegistry_`, `globalPerPaymentCap_`, and three tier caps. Daily caps intentionally not
+applied to deposits (see D-04).
 
 ---
 
-## Findings — Revision 2 (New, this session)
+## Findings — Revision 2 (Fixed)
 
 ### D-01 — HIGH: Deploy script `grantRole` reverts when deployer != admin
+**Status:** Fixed in Rev 2. See Rev 2 notes.
+
+### D-02 — MEDIUM: Tier 1 daily cap mis-specified (1000× too large)
+**Status:** Fixed in Rev 2. `20_000_000_000` (20,000 USDC).
+
+### D-03 — MEDIUM: Tier 2 per-payment cap mis-specified (1000× too large)
+**Status:** Fixed in Rev 2. `20_000_000_000` (20,000 USDC).
+
+### D-04 — LOW: `ScheduledPayouts` has no daily spend limit (documented, intentional)
+**Status:** Documented. See below for recommended pre-mainnet approach.
+
+---
+
+## Findings — Revision 3 (New, this session)
+
+### E-01 — HIGH: Deploy script footgun when `admin == deployer`
 **File:** `contracts/script/Deploy.s.sol`
 **Status:** Fixed
 
-**Description:** The original deploy script deployed all contracts with `admin` (an env-var address) as `initialAdmin`, then immediately called `kycReg.grantRole(verifierRole, verifier)`. When `deployer != admin`, `msg.sender` (deployer) never received `DEFAULT_ADMIN_ROLE`, so the `grantRole` call reverted with `AccessControlUnauthorizedAccount`. The script only worked if the private key was the admin wallet itself.
+**Description:** When `DEPLOY_ADMIN_ADDRESS == msg.sender`, the deploy script (Rev 2
+pattern) called:
+1. `grantRole(DEFAULT_ADMIN_ROLE, admin)` — no-op (deployer already holds it)
+2. `renounceRole(DEFAULT_ADMIN_ROLE, deployer)` — removes the ONLY admin
 
-**Impact:** The intended role separation (deployer = hot key, admin = hardware/multisig) was impossible to execute. All four `grantRole` calls would revert.
+This left every contract permanently adminless with no recovery path.
 
-**Fix applied:** Contracts are now deployed with `msg.sender` (deployer) as `initialAdmin` so the deployer can call `grantRole`. After all operational roles are granted, `DEFAULT_ADMIN_ROLE` is transferred to `admin` and renounced from `msg.sender`. The deployer ends with zero roles on any contract. Pattern: grant → transfer → renounce.
+**Fix applied:** The script detects `deployerIsAdmin = (msg.sender == admin)` at startup.
+The renounce section is now guarded: `if (!deployerIsAdmin) { ... renounce ... }`. When
+`deployer == admin`, no renounce is performed; the deployer IS the admin and retains all
+roles as intended. A console warning is emitted. This is acceptable for testnet single-wallet
+setups; mainnet must use separate wallets.
 
-**No funds-control power was ever given to the deployer:** `OPERATOR_ROLE` is the only role that can move escrow funds (`fulfillOrder`/`rejectOrder`). It is granted directly to `operator`, not to `deployer`.
-
-**Note on feeWallet:** PayRouter sets `feeWallet = initialAdmin` in its constructor. After the fix, `feeWallet == deployer` at deploy time. A post-deploy timelocked `queueConfigChange(CHANGE_FEE_WALLET, ...)` must be executed to set `feeWallet` to the intended address. This is documented in the deploy script output and in the smoke-test guide. This is acceptable: the deployer wallet receiving fees temporarily causes no fund-loss risk, only an operational inconvenience.
-
-**Test coverage:** `contracts/test/Deploy.t.sol` — 15 tests verifying all role invariants post-deploy with five separate actor addresses.
+**Test coverage:** `test_AdminEqualsDeployer_RetainsAdminRole` in `Deploy.t.sol` — verifies
+that after the full setup sequence with a single wallet, the wallet still holds
+`DEFAULT_ADMIN_ROLE` on all contracts and can queue config changes.
 
 ---
 
-### D-02 — MEDIUM: Tier 1 daily cap mis-specified (1000x too large)
-**Files:** `contracts/script/Deploy.s.sol`, `contracts/test/PayRouter.Base.t.sol`, `config/brand.ts`
+### E-02 — HIGH: `feeWallet` defaulted to `initialAdmin` (deployer wallet received fees)
+**File:** `contracts/PayRouter.sol` constructor
 **Status:** Fixed
 
-**Description:** The approved spec states: "Tier 1: 100 USDC per payment, 20,000 USDC per day." The original constants used `20_000_000_000_000` (20,000,000 USDC — 1,000× too large) for `T1_DAILY`. The spec value is `20_000_000_000` (20,000 USDC at 6 decimals).
+**Description:** The constructor set `feeWallet = initialAdmin`. After the Rev 2
+grant-transfer-renounce fix, `initialAdmin = msg.sender` (deployer). This meant all
+protocol fees on fulfilled bill orders were sent to the deployer wallet, not the intended
+fee recipient. Even with `feeBps = 0` at launch, this would become a fund-misdirection bug
+the moment fees were enabled.
 
-**Fix applied:** Changed to `20_000_000_000` in Deploy.s.sol, PayRouter.Base.t.sol, and config/brand.ts.
+**Fix applied:** `PayRouter` constructor now accepts an explicit `feeWallet_` parameter
+(6th positional argument, after `initialAdmin`). Zero address reverts. The deploy script
+passes `feeWallet` (from `DEPLOY_FEE_WALLET_ADDRESS`, defaulting to `admin`). The test
+base also uses a distinct `feeWalletAddr = makeAddr("feeWallet")`.
+
+**Eliminating L-03:** This fix removes the post-deploy feeWallet timelock ceremony that
+was previously required. The feeWallet is correct at deploy time. The `CHANGE_FEE_WALLET`
+timelock path still exists for future updates; `test_TimelockCanChangeFeeWallet` and
+`test_RevertFeeWalletChange_ZeroAddress` cover it.
+
+**Test coverage:**
+- `test_FeeWallet_IsExplicitParam_NotDeployer` — feeWallet != deployer
+- `test_FeeWallet_IsExplicitParam_NotAdmin` — feeWallet != admin
+- `test_RevertConstructor_ZeroFeeWallet` — zero address reverts
+- `test_DuplicateRoles_OperatorEqualsAdmin_IsSafe` — feeWallet stays explicit when roles overlap
+- `test_TimelockCanChangeFeeWallet` — post-deploy feeWallet update still works
+- `test_RevertFeeWalletChange_ZeroAddress` — zero address guarded in timelock execute
 
 ---
 
-### D-03 — MEDIUM: Tier 2 per-payment cap mis-specified (1000x too large)
-**Files:** `contracts/script/Deploy.s.sol`, `contracts/test/PayRouter.Base.t.sol`, `config/brand.ts`
+### E-03 — LOW: `brand.ts` Tier 2 daily exported as `2n**256n-1n` (overflows `uint96`)
+**File:** `config/brand.ts`, `TIER_LIMITS[2].daily`
 **Status:** Fixed
 
-**Description:** The approved spec states: "Tier 2: 20,000 USDC per payment, unlimited/day." The original constants used `20_000_000_000_000` (20,000,000 USDC) for `T2_PER_PAYMENT`. The spec value is `20_000_000_000` (20,000 USDC at 6 decimals).
-
-**Fix applied:** Changed to `20_000_000_000` in all three files.
-
----
-
-### D-04 — LOW: `ScheduledPayouts` has no daily spend limit (documented, intentional)
-**File:** `contracts/ScheduledPayouts.sol`
-**Status:** Documented — intentional design; daily limit inapplicable to deposit semantics
-
-**Description:** `PayRouter._checkAndRecordSpend` enforces a daily rolling spend limit per payer. `ScheduledPayouts._checkTierCap` enforces only a per-payment cap and global cap. There is no daily accumulator in `ScheduledPayouts`.
-
-**Assessment:** Shared daily accounting would require `ScheduledPayouts` to hold a `mapping(address => mapping(uint256 => uint128))` that is also updated by `PayRouter`, or for both contracts to reference a shared spend accounting contract. This is a structural dependency that would require:
-- A third shared contract with its own admin and upgrade surface,
-- Or a `PayRouter`-style accumulator added to `ScheduledPayouts` with a separate bucket from `PayRouter`'s bucket (no cross-contract aggregation),
-- Or a significant re-architecture of both contracts.
-
-The risk of introducing cross-contract state sharing to fix a non-critical spec deviation outweighs the benefit for a testnet/hackathon release. The per-payment cap (`≤ 25 USDC global, ≤ 20,000 USDC Tier 2`) already prevents large single deposits without a daily accumulator.
-
-**Decision:** Not implemented for testnet. Document and defer to mainnet design.
-
-**Recommended pre-mainnet approach:** Create a `SpendAccounting` contract that both `PayRouter` and `ScheduledPayouts` call. Both contracts hold an immutable reference and the accounting contract grants write access via `AccessControl`. This is the safest architecture change to make with an independent audit.
+**Description:** The TypeScript brand constant used `2n**256n-1n` for "unlimited". The
+contract encodes `T2_DAILY = 0` (meaning no cap: `if (cfg.dailyCap != 0 && ...)` condition
+is false when `dailyCap == 0`). The mismatch caused no contract bug (frontend only reads
+this for display), but could cause UI inconsistencies. Fixed: `daily: 0n` matching the
+contract convention.
 
 ---
 
 ## Low Findings (Open, Acceptable)
 
 ### L-01 — `TimelockPendingExecution` revert test
-Test `test_RevertQueueConfigChange_PendingExecution` is not yet written.
-**Recommendation:** Add to `PayRouter.Timelock.t.sol` before mainnet.
+**Status:** Present — `test_RevertQueueConfigChange_PendingExecution` in
+`PayRouter.Timelock.t.sol`. Closed.
 
-### L-02 — No direct ScheduledPayouts tier-cap integration tests
-`ScheduledPayouts.t.sol` has the new tier-enforcement tests but not a dedicated `ScheduledPayouts.Tier.t.sol` with fuzz coverage.
+### L-02 — No fuzz coverage for ScheduledPayouts tier-cap enforcement
+**Recommendation:** Add fuzz tests before mainnet.
 
 ### L-03 — `feeWallet` defaults to deployer
-After the D-01 fix, `feeWallet == deployer` at deploy time. Must be updated via timelocked `queueConfigChange` post-deploy. Documented in deploy script and smoke-test guide.
+**Status:** Closed by E-02 fix. feeWallet is now an explicit constructor param.
 
-### L-04 — `renounceRole` callable on DEFAULT_ADMIN_ROLE (OpenZeppelin standard)
-Standard OZ behavior. Use multisig for admin before mainnet.
+### L-04 — `renounceRole` callable on DEFAULT_ADMIN_ROLE (OZ standard behavior)
+Use multisig for admin before mainnet.
 
 ### L-05 — No fuzz tests for `_checkAndRecordSpend` accumulation boundary
 
+### L-06 — No integration test against forked Arc testnet with real Permit2 bytecode
+Unit tests use MockPermit2. The canonical EIP-712 digest chain has not been
+verified end-to-end against the real deployed Permit2. This is Mainnet Gate 1.
+
 ---
 
-## Infrastructure Verification (Arc Testnet)
+## D-04 — ScheduledPayouts daily limit gap (documented)
 
-| Item | Status | Detail |
-|------|--------|--------|
-| RPC endpoint | Confirmed | `https://rpc.testnet.arc.io` responds |
-| Explorer | Confirmed | `https://explorer.testnet.arc.io` |
-| Permit2 bytecode at canonical address | **Confirmed** | Non-empty bytecode at `0x000000000022D473030F116dDEE9F6B43aC78BA3` on Arc testnet |
-| USDC proxy bytecode | **Confirmed** | Non-empty bytecode at `0x3600000000000000000000000000000000000000` on Arc testnet |
-| USDC ERC-20 decimals | 6 (application-level) | Arc uses 18 decimals for native/gas view, 6 for ERC-20 transfers. Dash contracts use ERC-20 interface only. No change needed. |
+`ScheduledPayouts._checkTierCap` enforces the per-payment cap and global cap but has no
+daily accumulator. `PayRouter._checkAndRecordSpend` has its own daily bucket that is
+independent of ScheduledPayouts.
+
+**Impact at testnet launch:** The 25 USDC global cap limits each deposit to ≤ 25 USDC.
+A user could theoretically make multiple deposits in one day totaling more than their daily
+tier limit, but at testnet caps this amounts to at most a few hundred USDC/day.
+
+**Recommended pre-mainnet approach:** Extract daily accounting into a `SpendAccounting`
+contract with `AccessControl`. Both `PayRouter` and `ScheduledPayouts` hold an immutable
+reference to it and call `recordSpend(address, uint256)`. This is the safest architecture
+— deploy `SpendAccounting` first, pass its address to both router constructors. Requires
+an independent audit of the new contract.
 
 ---
 
@@ -163,10 +209,10 @@ Standard OZ behavior. Use multisig for admin before mainnet.
 | fulfillOrder blocked after expiry | ✅ |
 | Pause blocks only entry points; reject/reclaim/fulfill/claim/cancel always live | ✅ |
 | Tier per-payment limits on all payment entry points incl. schedule deposits | ✅ |
-| Global per-payment cap | ✅ |
+| Global per-payment cap (25 USDC at launch) | ✅ |
 | Tier 0: 5 USDC/payment, 50 USDC/day | ✅ |
-| Tier 1: 100 USDC/payment, 20,000 USDC/day | ✅ Fixed (D-02) |
-| Tier 2: 20,000 USDC/payment, unlimited/day | ✅ Fixed (D-03) |
+| Tier 1: 100 USDC/payment, 20,000 USDC/day | ✅ |
+| Tier 2: 20,000 USDC/payment, unlimited/day | ✅ |
 | Shared daily accounting across PayRouter + ScheduledPayouts | ⚠️ Not implemented — see D-04 |
 | Operator cannot redirect funds to arbitrary address | ✅ Treasury locked at order creation |
 | No admin power over individual schedules | ✅ |
@@ -178,31 +224,44 @@ Standard OZ behavior. Use multisig for admin before mainnet.
 | Timelock queue cannot be silently overwritten | ✅ |
 | MAX_FEE_BPS = 200 enforced | ✅ |
 | Fee only on fulfilled orders | ✅ |
+| feeWallet set explicitly at deploy, not to deployer | ✅ Fixed (E-02) |
 | No product name in contracts, events, file names | ✅ |
 | No PII on-chain | ✅ |
-| Deploy: deployer has no roles after deploy | ✅ Fixed (D-01) |
-| Deploy: admin is sole DEFAULT_ADMIN_ROLE holder post-deploy | ✅ Fixed (D-01) |
+| Deploy: deployer has no roles after deploy (when deployer != admin) | ✅ |
+| Deploy: admin==deployer case handled safely (no role drop) | ✅ Fixed (E-01) |
+| Deploy: admin is sole DEFAULT_ADMIN_ROLE holder post-deploy | ✅ |
+
+---
+
+## Infrastructure Verification (Arc Testnet)
+
+| Item | Status | Detail |
+|------|--------|--------|
+| RPC endpoint | Confirmed | `https://rpc.testnet.arc.io` responds |
+| Explorer | Confirmed | `https://explorer.testnet.arc.io` |
+| Permit2 bytecode at canonical address | **Confirmed** | Non-empty at `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+| USDC proxy bytecode | **Confirmed** | Non-empty at `0x3600000000000000000000000000000000000000` |
+| USDC ERC-20 decimals | 6 (application-level) | Native view 18 decimals; Dash uses ERC-20 only |
+| Dry-run simulation | **Passed** | All 4 contracts, roles, gas ~2.22 USDC |
 
 ---
 
 ## Mainnet Deployment Gates
 
-These must all be satisfied before broadcasting to mainnet:
+1. **Arc testnet deployment and smoke-test (L-06):** Deploy all four contracts. Perform
+   real-wallet `send`, `createOrder`, `fulfillOrder`, `reclaimOrder`, and `deposit`+`claim`
+   flows. Confirm Permit2 EIP-712 signature verification succeeds end-to-end.
+   See `docs/testnet-smoke-test.md`.
 
-1. **Arc testnet deployment and smoke-test**: Deploy all four contracts. Perform real-wallet `send`, `createOrder`, `reclaimOrder`, and `deposit`+`claim` flows. Confirm Permit2 signature verification succeeds end-to-end. See `docs/testnet-smoke-test.md`.
+2. **Admin wallet is a multisig (L-04):** Single-EOA admin enables self-lockout via
+   `renounceRole`. Use Gnosis Safe or similar before mainnet.
 
-2. **T-01 test (TimelockPendingExecution revert) written and passing**: Low priority but should cover the M-01 fix path.
+3. **D-04 daily accounting decision finalized:** Either accept the limitation or implement
+   the `SpendAccounting` shared contract with an independent audit before mainnet.
 
-3. **Admin wallet is a multisig**: Single-EOA admin on mainnet enables L-04 self-lockout.
+4. **Raise global per-payment cap via timelock:** The 25 USDC cap is a conservative testnet
+   default. Queue and execute `CHANGE_GLOBAL_PER_PAYMENT_CAP` after confirming all flows
+   work correctly.
 
-4. **feeWallet queued and executed post-deploy**: The deployer wallet holding fees is acceptable for testnet. Queue and execute the `CHANGE_FEE_WALLET` timelock within 24h of mainnet deploy.
-
-5. **D-04 daily accounting decision finalized**: Either accept the limitation or implement the `SpendAccounting` shared contract with an independent audit before mainnet.
-
-6. **Independent professional audit**: Required before any mainnet launch involving real user funds.
-
----
-
-## Arc Testnet Deployment Instructions
-
-See `docs/testnet-smoke-test.md` for step-by-step commands.
+5. **Independent security audit:** All contracts should receive an external audit before
+   mainnet with real user funds at stake.

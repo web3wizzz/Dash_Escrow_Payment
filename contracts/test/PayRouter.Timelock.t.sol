@@ -239,6 +239,38 @@ contract PayRouterTimelockTest is PayRouterTestBase {
         router.queueConfigChange(CHANGE_FEE_BPS, payload2);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // CHANGE_FEE_WALLET via timelock
+    // ─────────────────────────────────────────────────────────────
+
+    function test_TimelockCanChangeFeeWallet() public {
+        address newFeeWallet = makeAddr("newFeeWallet");
+        bytes32 changeKey    = keccak256("feeWallet");
+
+        vm.prank(admin);
+        router.queueConfigChange(changeKey, abi.encode(newFeeWallet));
+
+        vm.warp(block.timestamp + 24 hours + 1);
+
+        vm.prank(admin);
+        router.executeConfigChange(changeKey);
+
+        assertEq(router.feeWallet(), newFeeWallet, "feeWallet should update after timelock");
+    }
+
+    function test_RevertFeeWalletChange_ZeroAddress() public {
+        bytes32 changeKey = keccak256("feeWallet");
+
+        vm.prank(admin);
+        router.queueConfigChange(changeKey, abi.encode(address(0)));
+
+        vm.warp(block.timestamp + 24 hours + 1);
+
+        vm.prank(admin);
+        vm.expectRevert(PayRouter.ZeroAddress.selector);
+        router.executeConfigChange(changeKey);
+    }
+
     /// @dev After executing the first queued change, a new one can be queued.
     function test_QueueConfigChange_AfterExecution_Succeeds() public {
         bytes memory payload1 = abi.encode(uint16(50));
