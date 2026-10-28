@@ -45,29 +45,32 @@ contract PayRouterSendTest is PayRouterTestBase {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // SEND — tier limits
+    // SEND — permissionless model: only global cap enforced
     // ─────────────────────────────────────────────────────────────
 
-    function test_RevertSend_ExceedsTierPerPaymentCap_Tier0() public {
-        uint256 amount = 6 * USDC_6; // > T0_PER_PAYMENT (5 USDC), <= GLOBAL_CAP (25 USDC)
+    function test_Send_Tier0_AboveOldTierCap_NowSucceeds() public {
+        // Permissionless model: alice (Tier-0) can send 6 USDC even though the
+        // old Tier-0 per-payment cap was 5 USDC.  Per-tier caps are not enforced.
+        uint256 amount = 6 * USDC_6; // > old T0_PER_PAYMENT (5), still <= GLOBAL_CAP (25)
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(PayRouter.ExceedsTierPerPaymentCap.selector, uint8(0)));
         router.send(_buildPermit(amount), DUMMY_SIG, bob, amount);
+
+        assertEq(permit2.permitCallCount(), 1, "transfer executed");
     }
 
     function test_RevertSend_ExceedsGlobalCap() public {
-        // bob is Tier-1 with per-payment cap 100 USDC, but globalCap is 25 USDC
+        // The global per-payment cap (25 USDC) is still enforced for all wallets.
         uint256 amount = 26 * USDC_6;
 
-        vm.prank(bob);
+        vm.prank(alice);
         vm.expectRevert(PayRouter.ExceedsGlobalCap.selector);
-        router.send(_buildPermit(amount), DUMMY_SIG, alice, amount);
+        router.send(_buildPermit(amount), DUMMY_SIG, bob, amount);
     }
 
-    function test_RevertSend_ExceedsTierDailyCap_Tier0() public {
-        // T0 daily cap = 50 USDC. Send 5 USDC ten times (50 total).
-        // The 11th (5 more) should revert.
+    function test_Send_MultiplePayments_DailyDataRecorded() public {
+        // Daily spend is still recorded (data for future governance).
+        // No daily-cap revert fires at launch — only global per-payment cap is active.
         uint256 amount = 5 * USDC_6;
 
         for (uint256 i = 0; i < 10; i++) {
@@ -75,10 +78,13 @@ contract PayRouterSendTest is PayRouterTestBase {
             router.send(_buildPermit(amount), DUMMY_SIG, bob, amount);
         }
 
-        // 11th send should revert
+        uint256 day = block.timestamp / 1 days;
+        assertEq(router.dailySpend(alice, day), 50 * USDC_6, "daily spend recorded");
+        // Note: no revert because daily-cap enforcement was removed.
+        // A further send still succeeds as long as it is within globalPerPaymentCap.
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(PayRouter.ExceedsTierDailyCap.selector, uint8(0)));
         router.send(_buildPermit(amount), DUMMY_SIG, bob, amount);
+        assertEq(permit2.permitCallCount(), 11, "all 11 sends executed");
     }
 
     function test_Send_DailyCapResets_AfterWarp() public {

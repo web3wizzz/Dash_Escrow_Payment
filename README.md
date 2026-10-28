@@ -1,6 +1,6 @@
-# Dash — USDC Payments on Arc
+# DA$H — USDC Payments on Arc
 
-Non-custodial USDC spending app on Arc mainnet. Send USDC to wallet addresses or @handles, request money with shareable links and QR codes, scan QR codes to pay, and pay bills via a sandboxed biller flow. Identity verification and billers are sandboxed for this demo, clearly labeled in the UI.
+Non-custodial USDC spending app on Arc. Send USDC to wallet addresses or @handles, request money with shareable links and QR codes, scan QR codes to pay, create escrow orders, and schedule payouts (pay later, allowances, vesting, payroll, streaming). All payment flows are permissionless — no identity verification required to send, receive, or escrow. Billers are sandboxed for this demo, clearly labeled in the UI.
 
 Built with [Arc Studio](https://studio.arc.io).
 
@@ -10,7 +10,7 @@ Built with [Arc Studio](https://studio.arc.io).
 - **Backend**: Bun HTTP server (port 3001) serving the bill provider catalog
 - **Onchain**: wagmi v2, viem, ConnectKit
 - **Payments**: Permit2 SignatureTransfer (exact amount, single-use nonce), USDC on Arc mainnet
-- **Smart Contracts**: Foundry (Solidity 0.8.x) — HandleRegistry, KycRegistry, PayRouter
+- **Smart Contracts**: Foundry (Solidity 0.8.x) — HandleRegistry, KycRegistry, PayRouter, ScheduledPayouts
 - **Chain**: Arc mainnet (chain ID 5042) — USDC is the native gas token
 
 ## Development
@@ -32,6 +32,8 @@ bun install
 | `VITE_HANDLE_REGISTRY_ADDRESS` | Deployed HandleRegistry contract address |
 | `VITE_KYC_REGISTRY_ADDRESS` | Deployed KycRegistry contract address |
 | `VITE_PAY_ROUTER_ADDRESS` | Deployed PayRouter contract address |
+| `VITE_SCHEDULED_PAYOUTS_ADDRESS` | Deployed ScheduledPayouts contract address |
+| `VITE_FEE_WALLET_ADDRESS` | Fee wallet address (shown in Profile) |
 | `VITE_WALLETCONNECT_PROJECT_ID` | Optional WalletConnect project ID for multi-wallet support |
 | `RPC_PROXY_BASE_URL` | Arc Studio RPC proxy base URL (optional outside Arc Studio) |
 | `RPC_PROXY_TOKEN` | Arc Studio RPC proxy token (optional outside Arc Studio) |

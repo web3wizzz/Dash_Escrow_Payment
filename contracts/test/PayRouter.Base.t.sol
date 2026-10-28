@@ -36,7 +36,8 @@ abstract contract PayRouterTestBase is Test {
     uint96 internal constant T2_DAILY        = 0;              // unlimited
     uint96 internal constant GLOBAL_CAP      = 25_000_000;     // 25 USDC
     uint16 internal constant FEE_BPS_INIT    = 0;
-    uint8  internal constant MIN_BILL_TIER   = 1;
+    // minBillTier = 0: permissionless escrow at launch (was 1 in previous version).
+    uint8  internal constant MIN_BILL_TIER   = 0;
     uint32 internal constant ORDER_TIMEOUT   = 1800;           // 30 min
 
     // ── helpers ───────────────────────────────────────────────────

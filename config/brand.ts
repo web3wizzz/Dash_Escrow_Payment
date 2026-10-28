@@ -7,6 +7,7 @@
 export const BRAND = {
   name: 'Dash',
   tagline: 'Send and receive USDC instantly',
+  networkName: 'Arc',
   domain: 'dash.app',
   /** URI scheme for deep links: dash://pay?to=alice&amount=5 */
   uriScheme: 'dash',
@@ -34,8 +35,12 @@ export const TIER_LIMITS = {
 /** Global ceiling applied on top of tier limits: 25 USDC */
 export const GLOBAL_PER_PAYMENT_CAP = 25_000_000n;
 
-/** Minimum KYC tier required to create a bill order */
-export const MIN_BILL_TIER = 1;
+/**
+ * Minimum KYC tier required to create an escrow order.
+ * Set to 0 (permissionless) at launch — any wallet may create an order.
+ * Can be raised via the 24-hour admin timelock without a contract redeployment.
+ */
+export const MIN_BILL_TIER = 0;
 
 /** Seconds before a payer can reclaim an unfulfilled bill order */
 export const ORDER_TIMEOUT_SECONDS = 1800; // 30 minutes

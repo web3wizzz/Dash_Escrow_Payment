@@ -522,40 +522,32 @@ contract ScheduledPayoutsTierTest is ScheduledPayoutsTestBase {
         usdc.approve(address(permit2), type(uint256).max);
     }
 
-    /// T-02: Tier-0 user depositing above the per-payment cap reverts.
-    function test_Tier0_Deposit_AboveCap_Reverts() public {
-        uint128 tooMuch = uint128(T0_CAP_REAL) + 1;
+    /// T-02: Permissionless — Tier-0 user depositing above the old tier cap now SUCCEEDS.
+    /// Previously reverted with ExceedsTierPerPaymentCap; tier routing removed.
+    function test_Tier0_Deposit_AboveOldTierCap_NowSucceeds() public {
+        // 6 USDC > old T0_CAP (5 USDC) but <= GLOBAL_CAP (25 USDC)
+        uint128 amount = uint128(T0_CAP_REAL) + 1;
         uint64 end_ = uint64(block.timestamp) + 3600;
-        ScheduledPayouts.ScheduleParams memory params = _payLaterParams(bob, tooMuch, end_, false);
-        PermitTransferFrom memory p = _buildWitnessPermit(tooMuch);
+        ScheduledPayouts.ScheduleParams memory params = _payLaterParams(bob, amount, end_, false);
+        PermitTransferFrom memory p = _buildWitnessPermit(amount);
 
-        vm.prank(eve);
-        vm.expectRevert(abi.encodeWithSelector(ScheduledPayouts.ExceedsTierPerPaymentCap.selector, uint8(0)));
-        spTier.deposit(p, DUMMY_SIG, params);
+        vm.prank(eve); // eve is Tier-0 (no tier set)
+        spTier.deposit(p, DUMMY_SIG, params); // must NOT revert
     }
 
-    /// T-02 (passing): Tier-1 user depositing within per-payment cap AND global cap succeeds.
-    function test_Tier1_Deposit_WithinCap_Succeeds() public {
-        // Grant alice Tier 1 on spTier's kyc (same kyc instance)
-        vm.prank(admin);
-        kyc.setTier(alice, 1, type(uint64).max);
-
-        // Use global cap amount (25 USDC) — both global cap and Tier-1 cap (100 USDC) allow this.
-        uint128 amt = uint128(GLOBAL_CAP_REAL);
+    /// T-02b: Any wallet depositing within the global cap succeeds regardless of tier.
+    function test_AnyTier_Deposit_WithinGlobalCap_Succeeds() public {
+        uint128 amt = uint128(GLOBAL_CAP_REAL); // exactly 25 USDC
         uint64 end_ = uint64(block.timestamp) + 3600;
         ScheduledPayouts.ScheduleParams memory params = _payLaterParams(bob, amt, end_, false);
         PermitTransferFrom memory p = _buildWitnessPermit(amt);
 
-        vm.prank(alice);
+        vm.prank(alice); // alice has Tier 1 on this instance; tier no longer matters
         spTier.deposit(p, DUMMY_SIG, params); // must not revert
     }
 
-    /// T-03: Any user depositing above the global cap reverts, regardless of tier.
+    /// T-03: Any user depositing above the global cap reverts with ExceedsGlobalCap.
     function test_GlobalCap_Deposit_AboveCap_Reverts() public {
-        // Grant alice Tier 2 so tier check passes, but global cap is 25 USDC
-        vm.prank(admin);
-        kyc.setTier(alice, 2, type(uint64).max);
-
         uint128 tooMuch = uint128(GLOBAL_CAP_REAL) + 1;
         uint64 end_ = uint64(block.timestamp) + 3600;
         ScheduledPayouts.ScheduleParams memory params = _payLaterParams(bob, tooMuch, end_, false);

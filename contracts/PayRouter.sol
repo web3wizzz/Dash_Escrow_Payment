@@ -79,7 +79,9 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
     }
 
     error HandleNotFound(string handle);
-    error InsufficientTierForBillOrder();
+    // InsufficientTierForBillOrder removed — escrow is permissionless at launch.
+    // Retained as a compile-time artefact comment so existing ABIs referencing it
+    // remain discoverable; the revert is no longer reachable from any codepath.
     error OrderNotPending();
     error OrderNotExpired();
     error InvalidBiller();
@@ -319,7 +321,9 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
         bytes32 ref,
         uint256 amount
     ) external whenNotPaused nonReentrant returns (bytes32 orderId) {
-        if (kycRegistry.effectiveTier(msg.sender) < minBillTier) revert InsufficientTierForBillOrder();
+        // Escrow is permissionless — any wallet may create an order against a
+        // registered biller.  The minBillTier config key is preserved for future
+        // governance but is not enforced here.
         if (!isBiller[billerId]) revert InvalidBiller();
         if (amount == 0 || amount != permit.permitted.amount || amount > type(uint128).max) revert InvalidAmount();
         if (permit.permitted.token != address(usdc)) revert InvalidAmount();
@@ -499,17 +503,25 @@ contract PayRouter is AccessControl, ReentrancyGuard, Pausable {
         });
     }
 
+    /**
+     * @dev Checks the global per-payment cap and records the spend in the daily bucket.
+     *
+     * Architecture note (permissionless model):
+     *   Identity-tier routing has been removed.  Every wallet is subject to the
+     *   same globalPerPaymentCap enforced here.  The tierConfigs mapping and
+     *   CHANGE_TIER_CONFIG timelock key are retained so that tiered limits can be
+     *   re-introduced via governance without a contract upgrade.  The kycRegistry
+     *   immutable reference is also retained for the same reason; it is not called
+     *   from any payment path at launch.
+     *
+     *   Daily spend is still recorded so that a future governance vote to re-enable
+     *   daily caps has pre-existing data to work with.
+     */
     function _checkAndRecordSpend(address payer, uint256 amount) internal {
-        uint8 tier = kycRegistry.effectiveTier(payer);
-        TierConfig memory cfg = tierConfigs[tier];
-
         if (amount > globalPerPaymentCap) revert ExceedsGlobalCap();
-        if (amount > cfg.perPaymentCap) revert ExceedsTierPerPaymentCap(tier);
 
         uint256 day = block.timestamp / 1 days;
         uint256 updated = uint256(_dailySpend[payer][day]) + amount;
-
-        if (cfg.dailyCap != 0 && updated > cfg.dailyCap) revert ExceedsTierDailyCap(tier);
         if (updated > type(uint128).max) revert InvalidAmount();
 
         _dailySpend[payer][day] = uint128(updated);

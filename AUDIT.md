@@ -92,3 +92,33 @@ Deploy in this strict order — later contracts take earlier ones as constructor
 | `PAUSER_ROLE` | Third address | Pause/unpause new payment functions | Affect in-flight orders |
 
 Roles can be rotated: if the operator or verifier key leaks, `DEFAULT_ADMIN_ROLE` revokes the compromised role and grants it to a new address.
+
+---
+
+## Permissionless Model (Launch Architecture)
+
+### What changed
+Identity verification is **not required** for any payment action at launch. The contracts enforce one limit unconditionally: the `globalPerPaymentCap` (25 USDC per payment for all wallets).
+
+Specifically:
+- `PayRouter._checkAndRecordSpend` no longer calls `kycRegistry.effectiveTier()`. It only checks `globalPerPaymentCap`.
+- `PayRouter.createOrder` (escrow) no longer gates on `minBillTier`. It is open to all wallets. `minBillTier` is set to `0` in the deploy script.
+- `ScheduledPayouts._checkTierCap` no longer routes through per-tier caps. It calls `if (amount > globalPerPaymentCap) revert ExceedsGlobalCap()` directly.
+
+### What is retained
+- `kycRegistry` immutable reference in both contracts (read-only, not called on payment paths).
+- `tierConfigs` storage and timelock keys in `PayRouter` (for future governance activation).
+- Daily spend tracking in `PayRouter.dailySpend` (data for future analytics/governance).
+- `KycRegistry` contract itself (deployed, unchanged, usable for optional compliance tools).
+- `TIER_INFO` and tier limit constants in the frontend `src/lib/tiers.ts` (forward-compatible, not enforced in UI).
+
+### Security posture
+The global per-payment cap (25 USDC) prevents unbounded drain in the event of a compromised Permit2 or a frontend signature-phishing attack. It is enforced unconditionally on-chain and can only be raised after a 24-hour governance timelock by `DEFAULT_ADMIN_ROLE`.
+
+The removal of per-tier enforcement does NOT increase the maximum per-payment loss relative to the previous Tier-0 enforcement path (the global cap was already the tighter limit for Tier-0 wallets).
+
+### Frontend
+- No tier pill displayed in the balance hero or wallet bar.
+- `BillOrderForm` no longer shows a "verification required" gate.
+- `SendForm` cap display shows the global cap only.
+- `LimitsCard` on the home screen explains the permissionless architecture.

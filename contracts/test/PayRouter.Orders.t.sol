@@ -71,13 +71,22 @@ contract PayRouterOrdersTest is PayRouterTestBase {
     // CREATE ORDER — reverts
     // ─────────────────────────────────────────────────────────────
 
-    function test_RevertCreateOrder_InsufficientTierForBillOrder() public {
-        // alice is Tier-0, minBillTier=1 → revert
+    function test_CreateOrder_Tier0_Succeeds_Permissionless() public {
+        // Permissionless model: alice is Tier-0 and minBillTier=0 — must succeed.
+        // Previously this would revert with InsufficientTierForBillOrder; that
+        // error and check have been removed.  This test documents the new behaviour.
+        assertEq(kyc.effectiveTier(alice), 0, "alice is Tier 0");
+        assertEq(router.minBillTier(), 0, "minBillTier is 0");
+
         PermitTransferFrom memory permit = _buildWitnessPermit(ORDER_AMOUNT);
 
         vm.prank(alice);
-        vm.expectRevert(PayRouter.InsufficientTierForBillOrder.selector);
-        router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
+        bytes32 orderId = router.createOrder(permit, DUMMY_SIG, billerAddress, ACCOUNT_HASH, REF, ORDER_AMOUNT);
+
+        // Verify order was recorded
+        (address payer,,,,, PayRouter.OrderStatus status) = router.orders(orderId);
+        assertEq(payer, alice);
+        assertEq(uint8(status), uint8(PayRouter.OrderStatus.Pending));
     }
 
     function test_RevertCreateOrder_InvalidBiller() public {

@@ -1,10 +1,51 @@
 # Agent Notes — Dash USDC Spending App
 
+## Payments Hub — Oct 27 2026
+Replaced Bills tab with a Web3-native Payments hub. Legacy /bills route preserved.
+New files:
+- `src/pages/Payments.tsx` — hub with 4 category cards + in-page panels
+- `src/components/payments/InvoicePanel.tsx` — requestPay invoice flow (LIVE)
+- `src/components/payments/EscrowPanel.tsx` — createOrder escrow flow (LIVE, sandbox billers)
+Nav: Bills → Payments (CreditCard icon). HomeCards quick links updated.
+Results: 0 lint errors, 0 TS errors, production build ✓ (20s).
+
+## UI Polish Pass — Oct 27 2026
+Continuation of UI overhaul. All checks pass (0 lint, 0 TS errors).
+- `BalanceHero` — real QR code via `qrcode` canvas library in AddressSheet; handle copy in sheet; dual glow
+- `ScheduleDetail` — full overhaul: progress bar, claimable stat grid, token-aligned actions, detail rows, withdraw fallback
+- `OrderStatusPage` + `OrderStatus` — full overhaul: status accent bar, escrow badge, countdown, reclaim flow, explorer link
+- `Profile` — network label now dynamic (Arc Mainnet vs Arc Testnet) from TARGET_CHAIN_ID
+- `WelcomeScreen` — network label dynamic
+- `ScheduleTypeSelect` — new tile design with active dot and correct tokens
+- `ScheduleForm` — field-input CSS class, payroll row inputs polished, revocable toggle token-aligned
+- `src/index.css` — added `.field-input` utility class
+- `usePayRouter.ts` — exported `PAY_ROUTER_ADDRESS` (needed by OrderStatusPage)
+
+## UI Overhaul — Oct 26 2026
+Full premium frontend redesign. All functionality, hooks, ABIs, and chain config preserved. New/changed:
+- `src/components/ui/index.tsx` — shared primitives (PageHeader, Badge, Divider, SectionLabel)
+- `src/components/shared/WelcomeScreen.tsx` — wallet connect onboarding screen
+- Design tokens in `src/index.css` (CSS custom properties) and `tailwind.config.js` (navy/gold/slate/teal)
+- `config/brand.ts` — added `networkName: 'Arc'`
+- All pages and key components updated to new token palette
+- Results: 0 lint errors, 0 TS errors, production build ✓
+
 ## Project Overview
 Non-custodial USDC spending app on Arc mainnet. Users send USDC by handle or address, request payment via link/QR, scan QR to pay, and pay bills via a sandboxed biller flow. All payment flows use Permit2 SignatureTransfer (exact amount, single-use nonce). Identity verification and billers are sandboxed/mock, clearly labeled in the UI.
 
+## Permissionless Architecture — Current Session
+Removed tier-gate enforcement from payment paths. Now:
+- `PayRouter._checkAndRecordSpend` only checks `globalPerPaymentCap` (25 USDC). No `effectiveTier()` call.
+- `PayRouter.createOrder` no longer checks `minBillTier`.
+- `ScheduledPayouts._checkTierCap` only checks `globalPerPaymentCap`.
+- `minBillTier = 0` in Deploy script and `config/brand.ts`.
+- KYC immutables and tier storage retained for governance optionality.
+- Daily spend tracking retained in PayRouter (data, not enforcement).
+- Test suite: **234/234 pass** (was 224; 10 new permissionless tests added).
+- Frontend: TierPill removed from BalanceHero + WalletBar. `BillOrderForm` tier gate removed. `LimitsCard` shows global cap. `limitViolation()` simplified to global-cap only.
+
 ## Deployed Contracts
-None deployed yet. Contracts are built and all 224 tests pass. Ready for Arc testnet deployment.
+None deployed yet. Contracts are built and all 234 tests pass. Ready for Arc testnet deployment.
 
 Deploy order: HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts.
 Use `contracts/script/Deploy.s.sol` (reads env vars, grants all roles, prints VITE_* lines).

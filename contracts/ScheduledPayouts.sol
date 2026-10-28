@@ -387,16 +387,17 @@ contract ScheduledPayouts is AccessControl, ReentrancyGuard, Pausable {
         return 0;
     }
 
-    /// @dev Checks that `amount` does not exceed the global cap or the caller's tier per-payment cap.
-    function _checkTierCap(address payer, uint256 amount) internal view {
+    /**
+     * @dev Checks the global per-payment cap for schedule deposits.
+     *
+     * Architecture note (permissionless model):
+     *   Identity-tier routing has been removed.  Every wallet is subject to the
+     *   same globalPerPaymentCap.  The tier immutables (tierPerPaymentCap0/1/2)
+     *   and kycRegistry reference are retained so tiered caps can be re-introduced
+     *   via a contract upgrade or a new deployment with governance approval,
+     *   without discarding the existing contract design.
+     */
+    function _checkTierCap(address, uint256 amount) internal view {
         if (amount > globalPerPaymentCap) revert ExceedsGlobalCap();
-
-        uint8 tier = kycRegistry.effectiveTier(payer);
-        uint96 cap;
-        if (tier == 0) cap = tierPerPaymentCap0;
-        else if (tier == 1) cap = tierPerPaymentCap1;
-        else cap = tierPerPaymentCap2;
-
-        if (amount > cap) revert ExceedsTierPerPaymentCap(tier);
     }
 }
