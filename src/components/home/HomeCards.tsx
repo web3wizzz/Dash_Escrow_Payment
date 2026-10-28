@@ -1,284 +1,238 @@
 /**
- * HomeCards — the sections below the balance hero on Home:
- *   • Quick-action circles + bill shortcuts
- *   • Protected payments (pending bill orders)
- *   • Limits card (tier, per-payment cap, daily meter)
- *   • Recent activity list
+ * HomeCards — sections below the balance hero:
+ *   • Quick actions + bill shortcuts
+ *   • Protected payments / pending orders
+ *   • Spend limits card
+ *   • Recent activity placeholder
  */
 
 import { motion } from 'framer-motion'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAccount } from 'wagmi'
 import {
   ArrowUpRight, ArrowDownLeft, QrCode, Zap,
-  Phone, Wifi, Bolt, ShieldCheck, ArrowRight, RefreshCw,
-  Activity,
+  Phone, Wifi, Bolt, ShieldCheck, ArrowRight,
+  CalendarClock, Activity,
 } from 'lucide-react'
-import { useMyKycTier } from '../../hooks/useKycTier'
-import { TIER_INFO } from '../../lib/tiers'
 import { formatUnits } from 'viem'
+import { BRAND } from '../../../config/brand'
+import { SectionLabel, Badge, EmptyState, stagger } from '../ui'
 
-// ─── Stagger helpers ─────────────────────────────────────────────────────────
+// ─── Sandbox badge ────────────────────────────────────────────────────────────
 
-function fadeItem(delay: number) {
-  return {
-    initial: { opacity: 0, y: 8 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.22, delay, ease: [0.25, 0.1, 0.25, 1.0] as [number, number, number, number] },
-  }
-}
-
-// ─── Section card wrapper ─────────────────────────────────────────────────────
-
-function SectionCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+export function SandboxBadge() {
   return (
-    <motion.div
-      className="rounded-2xl p-4"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 2px 8px rgba(27,31,75,0.05)',
-      }}
-      {...fadeItem(delay)}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted)', letterSpacing: '0.08em' }}>
-      {children}
-    </p>
+    <Badge variant="sandbox">Sandbox</Badge>
   )
 }
 
 // ─── Quick actions ────────────────────────────────────────────────────────────
 
 const quickActions = [
-  { to: '/send',    label: 'Send',    icon: ArrowUpRight,   bg: 'rgba(27,31,75,0.08)',    fg: 'var(--ink)' },
-  { to: '/request', label: 'Request', icon: ArrowDownLeft,  bg: 'rgba(27,31,75,0.08)',    fg: 'var(--ink)' },
-  { to: '/scan',    label: 'Scan',    icon: QrCode,         bg: 'rgba(242,169,0,0.14)',   fg: '#C88B00' },
-  { to: '/bills',   label: 'Pay bills', icon: Zap,          bg: 'rgba(27,31,75,0.08)',    fg: 'var(--ink)' },
+  { to: '/send',      label: 'Send',      icon: ArrowUpRight,  bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
+  { to: '/request',   label: 'Request',   icon: ArrowDownLeft, bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
+  { to: '/scan',      label: 'Scan',      icon: QrCode,        bg: 'var(--gold-muted)',       fg: '#9A6E00' },
+  { to: '/payments',  label: 'Payments',  icon: Zap,           bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
+  { to: '/schedules', label: 'Schedule',  icon: CalendarClock, bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
 ]
 
 const billShortcuts = [
-  { label: 'Airtime',     icon: Phone,     to: '/bills?category=airtime' },
-  { label: 'Data',        icon: Wifi,      to: '/bills?category=data' },
-  { label: 'Electricity', icon: Bolt,      to: '/bills?category=electricity' },
+  { label: 'Invoice',     icon: Phone, to: '/payments' },
+  { label: 'Escrow',      icon: Wifi,  to: '/payments' },
+  { label: 'Schedule',    icon: Bolt,  to: '/schedules' },
 ]
 
-function QuickActions() {
+export function QuickActions() {
   return (
-    <motion.div className="space-y-3" {...fadeItem(0.08)}>
-      {/* Circular action row */}
-      <div className="grid grid-cols-4 gap-2">
-        {quickActions.map(({ to, label, icon: Icon, bg, fg }) => (
-          <Link
-            key={to}
-            to={to}
-            className="flex flex-col items-center gap-1.5 rounded-2xl py-3 px-1 text-center transition-all hover:scale-[1.03] active:scale-[0.97] min-h-[44px]"
-          >
-            <span
-              className="flex size-12 items-center justify-center rounded-full"
-              style={{ background: bg }}
+    <motion.div className="space-y-3" {...stagger(0)}>
+      {/* Five action pills in a row */}
+      <div className="grid grid-cols-5 gap-1.5">
+        {quickActions.map(({ to, label, icon: Icon, bg, fg }, i) => (
+          <motion.div key={to} {...stagger(i * 0.04)}>
+            <Link
+              to={to}
+              className="flex flex-col items-center gap-1.5 rounded-2xl py-2.5 px-1 text-center transition-all hover:scale-[1.04] active:scale-[0.96] min-h-[44px]"
             >
-              <Icon className="size-5" style={{ color: fg }} strokeWidth={1.9} />
-            </span>
-            <span className="text-[11px] font-semibold" style={{ color: 'var(--ink-2)' }}>{label}</span>
-          </Link>
+              <span
+                className="flex size-10 items-center justify-center rounded-xl"
+                style={{ background: bg }}
+              >
+                <Icon className="size-[18px]" style={{ color: fg }} strokeWidth={2} />
+              </span>
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--ink-2)' }}>
+                {label}
+              </span>
+            </Link>
+          </motion.div>
         ))}
       </div>
 
       {/* Bill shortcuts */}
       <div className="grid grid-cols-3 gap-2">
-        {billShortcuts.map(({ label, icon: Icon, to }) => (
-          <Link
-            key={to}
-            to={to}
-            className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition-all active:scale-[0.97] min-h-[44px]"
-            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
-          >
-            <Icon className="size-4 flex-shrink-0" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />
-            <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>{label}</span>
-          </Link>
+        {billShortcuts.map(({ label, icon: Icon, to }, i) => (
+          <motion.div key={to} {...stagger(0.14 + i * 0.05)}>
+            <Link
+              to={to}
+              className="flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-all active:scale-[0.97] min-h-[44px]"
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <Icon className="size-4 flex-shrink-0" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />
+              <span className="text-xs font-semibold truncate" style={{ color: 'var(--ink-2)' }}>{label}</span>
+            </Link>
+          </motion.div>
         ))}
       </div>
     </motion.div>
   )
 }
 
-// ─── Protected payments card ──────────────────────────────────────────────────
+// ─── Protected payments ───────────────────────────────────────────────────────
 
-function ProtectedPayments() {
-  // In a real implementation, we would read pending orders from an indexer
-  // filtered by the connected wallet. No orders are shown while contracts aren't deployed.
+export function ProtectedPayments() {
+  // Live: would read pending bill orders filtered by wallet from an indexer.
+  // Contracts not deployed yet — show empty state + explanation.
   const pendingOrders: never[] = []
 
   return (
-    <SectionCard delay={0.14}>
-      <SectionLabel>Protected payments</SectionLabel>
-      <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
-        Bill payments are held securely and returned automatically after 30 minutes if not fulfilled.
-      </p>
-
-      {pendingOrders.length === 0 ? (
-        <div className="flex flex-col items-center py-4 gap-1.5">
-          <ShieldCheck className="size-8" style={{ color: 'var(--border-strong)' }} strokeWidth={1.4} />
-          <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
-            No pending bill orders
-          </p>
+    <motion.div
+      className="rounded-3xl overflow-hidden"
+      style={{
+        background: 'var(--surface-elevated)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
+      }}
+      {...stagger(0.10)}
+    >
+      {/* Header strip */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex size-7 items-center justify-center rounded-xl"
+            style={{ background: 'rgba(24,165,139,0.12)' }}
+          >
+            <ShieldCheck className="size-3.5" style={{ color: 'var(--success-text)' }} strokeWidth={2} />
+          </span>
+          <SectionLabel>Protected payments</SectionLabel>
         </div>
-      ) : null}
+        <Badge variant="sandbox">Sandbox</Badge>
+      </div>
 
-      <Link
-        to="/bills"
-        className="mt-2 flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70"
-        style={{ color: 'var(--saffron)' }}
-      >
-        Pay a bill
-        <ArrowRight className="size-3.5" />
-      </Link>
-    </SectionCard>
+      <div className="px-4 pb-4">
+        <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted)' }}>
+          Bill payments are held in escrow until fulfilled. Automatically refunded after 30 minutes if not processed.
+        </p>
+
+        {pendingOrders.length === 0 ? (
+          <div className="rounded-2xl py-5 px-4 flex flex-col items-center gap-2 text-center"
+            style={{ background: 'var(--surface-muted)' }}>
+            <ShieldCheck className="size-7" style={{ color: 'var(--subtle)' }} strokeWidth={1.4} />
+            <p className="text-xs" style={{ color: 'var(--subtle)' }}>No pending orders</p>
+          </div>
+        ) : null}
+
+        <Link
+          to="/payments"
+          className="mt-3 flex items-center gap-1 text-xs font-bold transition-opacity hover:opacity-70"
+          style={{ color: 'var(--gold-hover)' }}
+        >
+          Open Payments hub
+          <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
+    </motion.div>
   )
 }
 
-// ─── Limits card ─────────────────────────────────────────────────────────────
+// ─── Spend limits card ────────────────────────────────────────────────────────
 
-function LimitsCard() {
+export function LimitsCard() {
   const { address } = useAccount()
-  const { data: tierData } = useMyKycTier()
-  const tier = tierData?.tier ?? 0
-  const info = TIER_INFO[tier]
-  const navigate = useNavigate()
 
-  // Daily cap in USDC display units
-  const dailyCapDisplay = info.dailyCap === null
-    ? 'Unlimited'
-    : `$${parseFloat(formatUnits(info.dailyCap, 6)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-
-  const perPayDisplay = `$${parseFloat(formatUnits(info.perPaymentCap, 6)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  // All payments use the global per-payment cap. No identity verification required.
+  const globalCapFormatted = `$${parseFloat(formatUnits(25_000_000n, 6)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
   return (
-    <SectionCard delay={0.18}>
-      <div className="flex items-start justify-between mb-3">
-        <SectionLabel>Limits</SectionLabel>
-        <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-          style={{
-            background: tier === 0 ? 'var(--surface-muted)' : tier === 1 ? 'rgba(16,97,166,0.10)' : 'rgba(26,128,71,0.10)',
-            color: tier === 0 ? 'var(--muted)' : tier === 1 ? '#1061a6' : 'var(--success)',
-            letterSpacing: '0.07em',
-          }}
-        >
-          {info.label}
-        </span>
+    <motion.div
+      className="rounded-3xl"
+      style={{
+        background: 'var(--surface-elevated)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
+      }}
+      {...stagger(0.14)}
+    >
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <SectionLabel>Payment limit</SectionLabel>
+        <Badge variant="success">Permissionless</Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="rounded-xl p-3" style={{ background: 'var(--surface-muted)' }}>
-          <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>Per payment</p>
-          <p className="text-base font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{perPayDisplay}</p>
+      <div className="px-4 pb-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl p-3" style={{ background: 'var(--surface-muted)' }}>
+            <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>
+              Per payment
+            </p>
+            <p className="display text-lg font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{globalCapFormatted}</p>
+          </div>
+          <div className="rounded-2xl p-3" style={{ background: 'var(--surface-muted)' }}>
+            <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>
+              Required KYC
+            </p>
+            <p className="display text-lg font-bold" style={{ color: 'var(--teal)' }}>None</p>
+          </div>
         </div>
-        <div className="rounded-xl p-3" style={{ background: 'var(--surface-muted)' }}>
-          <p className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>Daily cap</p>
-          <p className="text-base font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{dailyCapDisplay}</p>
-        </div>
+
+        {/* Usage bar — $0.00 until on-chain daily spend tracking ships */}
+        {address && (
+          <div>
+            <div className="flex justify-between text-[11px] mb-1.5" style={{ color: 'var(--muted)' }}>
+              <span>Today&apos;s usage</span>
+              <span className="tabular-nums font-semibold">$0.00</span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-muted)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: '0%', background: 'var(--gold)' }}
+              />
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          The {globalCapFormatted} per-payment limit is enforced on-chain and can only be changed by the admin after a 24-hour governance timelock.
+        </p>
       </div>
-
-      {/* Today's usage — live data would come from on-chain events; show 0 until deployed */}
-      {address && (
-        <div className="mb-3">
-          <div className="flex justify-between text-[11px] mb-1" style={{ color: 'var(--muted)' }}>
-            <span>Today's usage</span>
-            <span className="tabular-nums">$0.00 / {dailyCapDisplay}</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-muted)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: '0%', background: 'var(--saffron)' }}
-            />
-          </div>
-        </div>
-      )}
-
-      <button
-        onClick={() => { void navigate('/settings') }}
-        className="flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70"
-        style={{ color: 'var(--ink)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-      >
-        <ShieldCheck className="size-3.5" />
-        <span>Verify identity <span style={{ color: 'var(--muted)' }}>(Sandbox)</span></span>
-        <ArrowRight className="size-3.5" style={{ color: 'var(--subtle)' }} />
-      </button>
-    </SectionCard>
+    </motion.div>
   )
 }
 
 // ─── Recent activity ──────────────────────────────────────────────────────────
 
-function RecentActivity() {
-  // Real transaction history would come from an event indexer.
-  // Show a proper empty state rather than fake data.
-  const navigate = useNavigate()
-
+export function RecentActivity() {
+  // Live activity will come from on-chain event indexer once contracts are deployed.
   return (
-    <SectionCard delay={0.22}>
-      <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Recent activity</SectionLabel>
-        <Link
-          to="/activity"
-          className="text-[11px] font-semibold transition-opacity hover:opacity-70"
-          style={{ color: 'var(--muted)' }}
-        >
-          See all
-        </Link>
+    <motion.div
+      className="rounded-3xl"
+      style={{
+        background: 'var(--surface-elevated)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
+      }}
+      {...stagger(0.18)}
+    >
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <SectionLabel>Activity</SectionLabel>
       </div>
-
-      <div className="flex flex-col items-center py-6 gap-2">
-        <div
-          className="flex items-center justify-center size-12 rounded-full mb-1"
-          style={{ background: 'var(--surface-muted)' }}
-        >
-          <Activity className="size-6" style={{ color: 'var(--border-strong)' }} strokeWidth={1.4} />
-        </div>
-        <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>No transactions yet</p>
-        <p className="text-xs text-center max-w-[200px]" style={{ color: 'var(--subtle)' }}>
-          Send or receive USDC to see your activity here.
-        </p>
-        <button
-          onClick={() => { void navigate('/send') }}
-          className="mt-2 flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70"
-          style={{ color: 'var(--saffron)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-        >
-          Send USDC
-          <ArrowUpRight className="size-3.5" />
-        </button>
+      <div className="px-4 pb-4">
+        <EmptyState
+          icon={<Activity className="size-6" />}
+          title="No transactions yet"
+          body={`Send or receive USDC on ${BRAND.networkName} to see activity here.`}
+        />
       </div>
-    </SectionCard>
+    </motion.div>
   )
 }
-
-// ─── Sandbox badge ────────────────────────────────────────────────────────────
-
-function SandboxBadge() {
-  return (
-    <div className="flex items-center justify-center gap-1.5">
-      <span
-        className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase"
-        style={{ background: 'rgba(186,43,76,0.10)', color: 'var(--danger)', letterSpacing: '0.07em' }}
-      >
-        Sandbox
-      </span>
-      <span className="text-[10px]" style={{ color: 'var(--subtle)' }}>
-        Identity verification and billers are simulated
-      </span>
-      <RefreshCw className="size-3" style={{ color: 'var(--subtle)' }} />
-    </div>
-  )
-}
-
-// ─── Exports ──────────────────────────────────────────────────────────────────
-
-export { QuickActions, ProtectedPayments, LimitsCard, RecentActivity, SandboxBadge }

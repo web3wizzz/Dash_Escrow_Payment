@@ -1,35 +1,71 @@
 /**
- * BalanceHero — deep-indigo balance card with handle chip, Add USDC, and Send actions.
- * Wallet disconnected: shows a single saffron Connect button + getting-started checklist.
+ * BalanceHero — Navy hero card with live USDC balance, handle, address sheet with real QR.
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi, formatUnits, type Address } from 'viem'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ConnectKitButton } from 'connectkit'
-import { Copy, Check, QrCode, ArrowUpRight, ShieldCheck, Wallet, BadgeCheck } from 'lucide-react'
+import { Copy, Check, QrCode, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import QRCodeLib from 'qrcode'
 import { getUsdc } from '../../onchain-facts'
 import { TARGET_CHAIN_ID } from '../../config'
-import { useMyHandle } from '../../hooks/useHandleRegistry'
-import { useMyKycTier } from '../../hooks/useKycTier'
 import { BRAND } from '../../../config/brand'
+import { Skeleton } from '../ui'
 
 const usdcFact = getUsdc(TARGET_CHAIN_ID)
 const USDC_ADDRESS = (usdcFact?.address ?? '0x3600000000000000000000000000000000000000') as Address
 const USDC_DECIMALS = usdcFact?.decimals ?? 6
 
-// ─── Address QR sheet ───────────────────────────────────────────────────────
+// ─── QR Canvas ───────────────────────────────────────────────────────────────
+
+function QRCanvas({ value, size = 200 }: { value: string; size?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    setReady(false)
+    void QRCodeLib.toCanvas(canvasRef.current, value, {
+      width: size,
+      margin: 2,
+      color: { dark: '#101934', light: '#FFFFFF' },
+      errorCorrectionLevel: 'M',
+    }).then(() => setReady(true))
+  }, [value, size])
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      {!ready && (
+        <div
+          className="absolute inset-0 rounded-2xl skeleton"
+          style={{ borderRadius: 16 }}
+        />
+      )}
+      <canvas
+        ref={canvasRef}
+        style={{
+          borderRadius: 16,
+          opacity: ready ? 1 : 0,
+          transition: 'opacity 0.2s ease',
+          display: 'block',
+        }}
+      />
+    </div>
+  )
+}
+
+// ─── Address sheet ────────────────────────────────────────────────────────────
 
 function AddressSheet({ address, onClose }: { address: Address; onClose: () => void }) {
   const short = `${address.slice(0, 10)}…${address.slice(-8)}`
   const [copied, setCopied] = useState(false)
 
-  const copy = () => {
-    void navigator.clipboard.writeText(address).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+  const copy = (text: string, setter: (v: boolean) => void) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setter(true)
+      setTimeout(() => setter(false), 2200)
     })
   }
 
@@ -39,132 +75,84 @@ function AddressSheet({ address, onClose }: { address: Address; onClose: () => v
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
       onClick={onClose}
     >
-      <div className="absolute inset-0" style={{ background: 'rgba(14,16,48,0.55)', backdropFilter: 'blur(4px)' }} />
+      <div className="absolute inset-0" style={{ background: 'rgba(8,15,34,0.65)', backdropFilter: 'blur(8px)' }} />
+
       <motion.div
-        className="relative w-full max-w-md rounded-t-3xl px-6 pt-3 pb-10"
-        style={{ background: '#ffffff', zIndex: 1 }}
-        initial={{ y: 80 }}
+        className="relative w-full max-w-md rounded-t-3xl pb-safe"
+        style={{
+          background: '#fff',
+          boxShadow: '0 -12px 48px rgba(16,25,52,0.22)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 20px), 20px)',
+        }}
+        initial={{ y: '100%' }}
         animate={{ y: 0 }}
-        exit={{ y: 80 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle */}
-        <div className="mx-auto mb-5 w-10 h-1 rounded-full" style={{ background: 'var(--border-strong)' }} />
+        {/* Gold accent strip */}
+        <div className="absolute top-0 inset-x-0 h-0.5 rounded-t-3xl" style={{ background: 'var(--gold)' }} />
 
-        <p className="text-center text-sm font-semibold mb-1" style={{ color: 'var(--ink)' }}>
-          Your address
-        </p>
-        <p className="text-center text-xs mb-5" style={{ color: 'var(--muted)' }}>
-          Receive USDC on Arc Mainnet
-        </p>
-
-        {/* QR placeholder — real QRCode rendered via canvas once library is available */}
-        <div
-          className="mx-auto mb-5 flex items-center justify-center rounded-2xl"
-          style={{ width: 180, height: 180, background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
-        >
-          <QrCode className="size-20" style={{ color: 'var(--subtle)' }} strokeWidth={1} />
+        {/* Close + drag */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <div className="mx-auto w-9 h-1 rounded-full" style={{ background: 'var(--border-strong)' }} />
         </div>
-
         <button
-          onClick={copy}
-          className="mx-auto flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-95"
-          style={{ background: 'var(--surface-muted)', color: 'var(--ink)' }}
+          onClick={onClose}
+          className="absolute top-3.5 right-4 flex size-8 items-center justify-center rounded-full transition-colors hover:bg-slate-100 active:scale-90"
+          aria-label="Close"
         >
-          <span className="mono text-xs">{short}</span>
-          {copied
-            ? <Check className="size-4" style={{ color: 'var(--success)' }} />
-            : <Copy className="size-4" style={{ color: 'var(--muted)' }} />
-          }
+          <X className="size-4" style={{ color: 'var(--muted)' }} />
         </button>
 
-        <p className="mt-4 text-center text-[11px]" style={{ color: 'var(--subtle)' }}>
-          Arc Mainnet · USDC only
-        </p>
+        <div className="px-6 pt-1 pb-2 text-center">
+          <p className="text-base font-bold mb-0.5" style={{ color: 'var(--ink)' }}>Your address</p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>Receive USDC on {BRAND.networkName}</p>
+        </div>
+
+        {/* QR */}
+        <div className="flex justify-center px-6 py-4">
+          <div
+            className="rounded-3xl p-3"
+            style={{ background: '#fff', boxShadow: '0 4px 24px rgba(16,25,52,0.10)', border: '1px solid var(--border)' }}
+          >
+            <QRCanvas value={address} size={200} />
+          </div>
+        </div>
+
+        {/* Copy address */}
+        <div className="px-6 space-y-2.5">
+          <button
+            onClick={() => copy(address, setCopied)}
+            className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all active:scale-[0.98]"
+            style={{ background: 'var(--surface-muted)', color: 'var(--ink)', border: '1px solid var(--border)' }}
+          >
+            <span className="mono text-xs truncate">{short}</span>
+            <AnimatePresence mode="wait" initial={false}>
+              {copied
+                ? <motion.span key="c" initial={{ scale: 0.6 }} animate={{ scale: 1 }} exit={{ scale: 0.6 }}>
+                    <Check className="size-4 shrink-0" style={{ color: 'var(--success)' }} />
+                  </motion.span>
+                : <motion.span key="n" initial={{ scale: 0.6 }} animate={{ scale: 1 }} exit={{ scale: 0.6 }}>
+                    <Copy className="size-4 shrink-0" style={{ color: 'var(--muted)' }} />
+                  </motion.span>
+              }
+            </AnimatePresence>
+          </button>
+
+          <p className="text-center text-[11px] pt-1" style={{ color: 'var(--subtle)' }}>
+            {BRAND.networkName} · USDC only
+          </p>
+        </div>
       </motion.div>
     </motion.div>
   )
 }
 
-// ─── Handle chip ────────────────────────────────────────────────────────────
-
-function HandleChip({ handle }: { handle: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = () => {
-    void navigator.clipboard.writeText(`@${handle}`).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <button
-      onClick={copy}
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all active:scale-95"
-      style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.18)' }}
-    >
-      <span>@{handle}</span>
-      {copied
-        ? <Check className="size-3" />
-        : <Copy className="size-3 opacity-70" />
-      }
-    </button>
-  )
-}
-
-// ─── Getting-started checklist ──────────────────────────────────────────────
-
-interface ChecklistStep {
-  label: string
-  done: boolean
-  icon: React.ReactNode
-}
-
-function GettingStarted({ steps }: { steps: ChecklistStep[] }) {
-  return (
-    <motion.div
-      className="rounded-2xl p-4"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(27,31,75,0.06)' }}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay: 0.1 }}
-    >
-      <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted)', letterSpacing: '0.08em' }}>
-        Get started
-      </p>
-      <div className="space-y-2.5">
-        {steps.map((step, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span
-              className="flex items-center justify-center size-7 rounded-full flex-shrink-0"
-              style={{
-                background: step.done ? 'rgba(26,128,71,0.12)' : 'var(--surface-muted)',
-                color: step.done ? 'var(--success)' : 'var(--muted)',
-              }}
-            >
-              {step.done ? <Check className="size-3.5" strokeWidth={2.5} /> : step.icon}
-            </span>
-            <span
-              className="text-sm"
-              style={{
-                color: step.done ? 'var(--muted)' : 'var(--ink)',
-                textDecoration: step.done ? 'line-through' : 'none',
-              }}
-            >
-              {step.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function BalanceHero() {
   const { address, isConnected } = useAccount()
@@ -179,131 +167,151 @@ export function BalanceHero() {
     chainId: TARGET_CHAIN_ID,
   })
 
-  const { data: handleData } = useMyHandle()
-  const { data: tierData } = useMyKycTier()
+  const [whole, frac] = (() => {
+    if (balanceRaw === undefined) return [null, null]
+    const n = parseFloat(formatUnits(balanceRaw, USDC_DECIMALS))
+    const parts = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.')
+    return [parts[0], parts[1] ?? '00']
+  })()
 
-  const handle = handleData && handleData.length > 0 ? handleData : null
+  const shortAddress = address ? `${address.slice(0, 8)}…${address.slice(-6)}` : ''
 
-  const formatted = balanceRaw !== undefined
-    ? parseFloat(formatUnits(balanceRaw, USDC_DECIMALS)).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    : null
-
-  // Getting-started steps (disconnected view)
-  const gettingStartedSteps: ChecklistStep[] = [
-    { label: 'Connect wallet',     done: isConnected,       icon: <Wallet className="size-3.5" /> },
-    { label: 'Fund your wallet',   done: balanceRaw !== undefined && balanceRaw > 0n,  icon: <QrCode className="size-3.5" /> },
-    { label: 'Claim a handle',     done: !!handle,          icon: <BadgeCheck className="size-3.5" /> },
-    { label: 'Verify identity (Sandbox)', done: (tierData?.tier ?? 0) >= 1, icon: <ShieldCheck className="size-3.5" /> },
-  ]
+  if (!isConnected) return null
 
   return (
     <>
-      {/* Balance hero card */}
-      <motion.section
-        className="rounded-3xl p-5"
-        style={{ background: '#0E1030', boxShadow: '0 12px 36px rgba(14,16,48,0.28)' }}
-        initial={{ opacity: 0, y: 10 }}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1.0] }}
+        className="relative overflow-hidden rounded-3xl"
+        style={{
+          background: 'linear-gradient(148deg, #16224A 0%, #0D1838 55%, #0A1220 100%)',
+          boxShadow: '0 8px 36px rgba(8,15,34,0.38)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
       >
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.09em' }}>
-            Available balance
-          </p>
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-            style={{ background: 'rgba(242,169,0,0.18)', color: '#F2A900', letterSpacing: '0.07em' }}
-          >
-            Arc Mainnet
-          </span>
-        </div>
+        {/* Gold radial glow — top right */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute"
+          style={{
+            top: -50, right: -50,
+            width: 240, height: 240,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(243,181,28,0.18) 0%, transparent 65%)',
+            filter: 'blur(24px)',
+          }}
+        />
+        {/* Teal glow — bottom left */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute"
+          style={{
+            bottom: -30, left: -30,
+            width: 160, height: 160,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(24,165,139,0.12) 0%, transparent 70%)',
+            filter: 'blur(20px)',
+          }}
+        />
 
-        {!isConnected ? (
-          /* ── Disconnected ── */
-          <div className="space-y-4">
-            <p className="bricolage text-5xl font-bold" style={{ color: 'rgba(255,255,255,0.20)', letterSpacing: '-0.03em' }}>
-              —
-            </p>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Connect your wallet to see your balance.
-            </p>
-            {/* Saffron connect button */}
-            <ConnectKitButton.Custom>
-              {({ show }) => (
-                <button
-                  onClick={show}
-                  className="btn-primary w-full py-3 text-sm text-center"
-                >
-                  Connect wallet
-                </button>
-              )}
-            </ConnectKitButton.Custom>
+        <div className="relative z-10 p-5">
+          {/* Top row: address chip + tier */}
+          <div className="flex items-center justify-between mb-5">
+            <button
+              onClick={() => setShowAddress(true)}
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all active:scale-95 hover:bg-white/10"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.55)',
+                border: '1px solid rgba(255,255,255,0.10)',
+              }}
+            >
+              <span className="mono">{shortAddress}</span>
+              <QrCode className="size-3" />
+            </button>
+            {/* Tier pill removed — payments are permissionless at launch */}
           </div>
-        ) : (
-          /* ── Connected ── */
-          <>
-            {/* Amount */}
-            <div className="flex items-baseline gap-2 mb-3">
-              <span
-                className="bricolage text-5xl font-bold tabular-nums"
-                style={{ color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1 }}
-              >
-                {isLoading ? (
-                  <span style={{ color: 'rgba(255,255,255,0.35)' }}>…</span>
-                ) : (formatted ?? '0.00')}
-              </span>
-              <span className="text-lg font-medium" style={{ color: 'rgba(255,255,255,0.50)' }}>USDC</span>
-            </div>
 
-            {/* Handle chip */}
-            {handle && <div className="mb-4"><HandleChip handle={handle} /></div>}
-            {!handle && (
-              <Link
-                to="/settings"
-                className="inline-flex items-center gap-1 text-xs mb-4 transition-opacity hover:opacity-80"
-                style={{ color: 'rgba(255,255,255,0.45)' }}
+          {/* Balance */}
+          <div className="mb-2">
+            <p
+              className="text-[11px] font-semibold uppercase mb-2"
+              style={{ color: 'rgba(255,255,255,0.38)', letterSpacing: '0.10em' }}
+            >
+              Available balance
+            </p>
+            {isLoading || whole === null ? (
+              <div className="flex items-end gap-1 mb-1">
+                <Skeleton className="h-12 w-40 rounded-xl" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              </div>
+            ) : (
+              <motion.div
+                key={whole + frac}
+                initial={{ opacity: 0.6 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-baseline gap-1.5"
               >
-                <BadgeCheck className="size-3.5" />
-                <span>Claim a handle in {BRAND.name}</span>
-              </Link>
+                <span
+                  className="display font-bold tabular-nums"
+                  style={{ color: '#fff', fontSize: '3.2rem', lineHeight: 1, letterSpacing: '-0.04em' }}
+                >
+                  {whole}
+                </span>
+                <span
+                  className="display font-bold tabular-nums"
+                  style={{ color: 'rgba(255,255,255,0.48)', fontSize: '1.7rem', lineHeight: 1, letterSpacing: '-0.03em' }}
+                >
+                  .{frac}
+                </span>
+                <span className="text-sm font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                  USDC
+                </span>
+              </motion.div>
             )}
+          </div>
 
-            {/* Action row */}
-            <div className="flex gap-2.5 mt-1">
-              <button
-                onClick={() => setShowAddress(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-sm font-semibold transition-all active:scale-95"
-                style={{ background: 'rgba(255,255,255,0.10)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.14)' }}
-              >
-                <QrCode className="size-4" />
-                Add USDC
-              </button>
-              <Link
-                to="/send"
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-sm font-semibold transition-all active:scale-95"
-                style={{ background: '#F2A900', color: '#0E1030' }}
-              >
-                <ArrowUpRight className="size-4" strokeWidth={2.4} />
-                Send
-              </Link>
-            </div>
-          </>
-        )}
-      </motion.section>
+          {/* Divider */}
+          <div className="h-px mb-4" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-      {/* Getting-started checklist — disconnected only */}
-      {!isConnected && (
-        <GettingStarted steps={gettingStartedSteps} />
-      )}
+          {/* Quick actions */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link
+              to="/send"
+              className="flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.97] hover:brightness-110"
+              style={{
+                background: '#F3B51C',
+                color: '#0A0F1E',
+                boxShadow: '0 2px 12px rgba(243,181,28,0.44)',
+              }}
+            >
+              <ArrowUpRight className="size-4" strokeWidth={2.5} />
+              Send
+            </Link>
+            <Link
+              to="/request"
+              className="flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.14)',
+              }}
+            >
+              <ArrowDownLeft className="size-4" strokeWidth={2.5} />
+              Request
+            </Link>
+          </div>
+        </div>
+      </motion.div>
 
-      {/* Address / QR sheet */}
       <AnimatePresence>
         {showAddress && address && (
-          <AddressSheet address={address} onClose={() => setShowAddress(false)} />
+          <AddressSheet
+            address={address}
+            onClose={() => setShowAddress(false)}
+          />
         )}
       </AnimatePresence>
     </>

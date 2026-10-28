@@ -21,21 +21,29 @@ export interface TierInfo {
   canUseBills: boolean
 }
 
+/**
+ * Tier info is kept for optional display in Profile (verification status)
+ * and for forward-compatibility with governance-controlled tier limits.
+ *
+ * At launch, identity verification is NOT required for any payment flow:
+ * send, request, escrow, and scheduled payouts are all permissionless.
+ * The only enforced limit is the global per-payment cap (25 USDC).
+ */
 export const TIER_INFO: Record<Tier, TierInfo> = {
   0: {
     tier: 0,
-    label: 'Unverified',
-    description: 'Sandbox — identity verification not required for basic use.',
+    label: 'Standard',
+    description: 'No identity verification required. Full access to all payment features.',
     perPaymentCap: TIER_LIMITS[0].perPayment,
     dailyCap: TIER_LIMITS[0].daily,
     perPaymentFormatted: formatUsdc(TIER_LIMITS[0].perPayment),
     dailyFormatted: formatUsdc(TIER_LIMITS[0].daily),
-    canUseBills: false,
+    canUseBills: true, // permissionless — escrow open to all wallets
   },
   1: {
     tier: 1,
     label: 'Verified',
-    description: 'Sandbox — basic identity verification.',
+    description: 'Optional identity verification. Higher limits available via governance.',
     perPaymentCap: TIER_LIMITS[1].perPayment,
     dailyCap: TIER_LIMITS[1].daily,
     perPaymentFormatted: formatUsdc(TIER_LIMITS[1].perPayment),
@@ -45,7 +53,7 @@ export const TIER_INFO: Record<Tier, TierInfo> = {
   2: {
     tier: 2,
     label: 'Enhanced',
-    description: 'Sandbox — enhanced identity verification.',
+    description: 'Optional enhanced verification. Reserved for future regulated services.',
     perPaymentCap: TIER_LIMITS[2].perPayment,
     dailyCap: null, // unlimited
     perPaymentFormatted: formatUsdc(TIER_LIMITS[2].perPayment),
@@ -74,14 +82,16 @@ export function isWithinLimits(amount: bigint, tier: Tier): boolean {
   return true
 }
 
-/** Returns a human-readable reason why an amount fails limits, or null if it passes. */
-export function limitViolation(amount: bigint, tier: Tier): string | null {
+/**
+ * Returns a human-readable reason why an amount fails the global payment cap,
+ * or null if it passes.
+ *
+ * Tier parameter is accepted for forward-compatibility but is not used for
+ * enforcement at launch — the global per-payment cap is the only active limit.
+ */
+export function limitViolation(amount: bigint, _tier: Tier): string | null {
   if (amount > GLOBAL_PER_PAYMENT_CAP) {
     return `Exceeds the maximum payment of ${GLOBAL_CAP_FORMATTED} USDC`
-  }
-  if (amount > TIER_LIMITS[tier].perPayment) {
-    const cap = formatUsdc(TIER_LIMITS[tier].perPayment)
-    return `Exceeds your ${TIER_INFO[tier].label} limit of ${cap} USDC per payment`
   }
   return null
 }

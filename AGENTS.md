@@ -44,11 +44,22 @@ Removed tier-gate enforcement from payment paths. Now:
 - Test suite: **234/234 pass** (was 224; 10 new permissionless tests added).
 - Frontend: TierPill removed from BalanceHero + WalletBar. `BillOrderForm` tier gate removed. `LimitsCard` shows global cap. `limitViolation()` simplified to global-cap only.
 
-## Deployed Contracts
-None deployed yet. Contracts are built and all 234 tests pass. Ready for Arc testnet deployment.
+## Deployed Contracts — Arc Testnet (2026-10-28)
 
-Deploy order: HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts.
-Use `contracts/script/Deploy.s.sol` (reads env vars, grants all roles, prints VITE_* lines).
+All 4 contracts deployed to Arc Testnet (chain ID 5042002).
+Full manifest: `docs/deployment-manifest.md`
+
+| Contract | Address | Tx Hash |
+|---|---|---|
+| HandleRegistry | `0x34cae0957ec0cd2327e134f2008ee111e66ca081` | `0x4c03c375...` |
+| KycRegistry | `0x3a480497c8d48c065dac5fdd46ea339aeb9a8bfd` | `0x46b6652d...` |
+| PayRouter | `0x9f2c221a4c7b0287ea03dca3877676ecc75ba1f8` | `0x8a63db56...` |
+| ScheduledPayouts | `0x95f13b64172e6df601fd6cec3f3c0b71d0e6f917` | `0xe22a6703...` |
+
+VITE_* env vars written to .env. Admin role: platform deployer (testnet only).
+No billers registered yet — createOrder will revert. Redeploy with initialBillers or use timelock.
+
+Mainnet status: NO-GO (see docs/mainnet-checklist.md for 4 blockers).
 See `docs/testnet-smoke-test.md` for step-by-step instructions.
 
 ## Contract Addresses (fill in after deploy)

@@ -9,16 +9,15 @@ import { type Hex, formatUnits } from 'viem'
 import { Loader2, Lock, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { parseAmount } from '../../onchain-money'
 import { useCreateOrder } from '../../hooks/usePayRouter'
-import { useMyKycTier } from '../../hooks/useKycTier'
 import { TxStatus } from '../shared/TxStatus'
 import { type Biller, recordRecentBiller } from '../../lib/billers'
 
 const TARGET_CHAIN_ID_local = 5042 // Arc mainnet
 
 const surfaceInner: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.80)',
-  border: '1px solid rgba(27,31,75,0.09)',
-  boxShadow: '0 1px 3px rgba(27,31,75,0.04)',
+  background: 'var(--surface-elevated)',
+  border: '1px solid var(--border)',
+  boxShadow: '0 1px 4px rgba(16,25,52,0.04)',
 }
 
 interface BillOrderFormProps {
@@ -31,7 +30,6 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
   const { address, isConnected } = useAccount()
   const { signTypedDataAsync } = useSignTypedData()
   const { createOrder, hash, isPending, isConfirming, isSuccess, isError, error, reset } = useCreateOrder()
-  const { data: tierData } = useMyKycTier()
 
   // Dynamic field values keyed by field name
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
@@ -39,9 +37,7 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
   )
   const [amount, setAmount] = useState('')
 
-  const tier = tierData?.tier ?? 0
-  const canUseBills = tier >= 1
-
+  // Escrow is permissionless — no tier gate at launch
   const allFieldsFilled = biller.requiredFields.every(f => fieldValues[f.name]?.trim())
 
   const parsedAmount = (() => {
@@ -55,7 +51,7 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
     ? parsedAmount.raw >= BigInt(biller.minAmount) && parsedAmount.raw <= BigInt(biller.maxAmount)
     : false
 
-  const ready = isConnected && canUseBills && allFieldsFilled && amountValid
+  const ready = isConnected && allFieldsFilled && amountValid
 
   // Build the account detail string from all required fields (concatenated, hashed on-chain)
   const accountDetail = biller.requiredFields
@@ -76,29 +72,6 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
     } catch {
       // errors surfaced by TxStatus
     }
-  }
-
-  if (!canUseBills) {
-    return (
-      <div
-        className="rounded-2xl p-4 flex items-start gap-3"
-        style={{
-          background: 'rgba(242,169,0,0.07)',
-          border: '1px solid rgba(242,169,0,0.20)',
-        }}
-      >
-        <Lock className="size-4 mt-0.5 shrink-0" style={{ color: '#b37800' }} />
-        <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-            Verification required
-          </p>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
-            Bill payments require Tier 1 (Verified) or higher. Complete identity verification in Settings to continue.
-            <span className="ml-1 font-semibold">(Sandbox)</span>
-          </p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -188,9 +161,9 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
       {/* Escrow explainer */}
       <div
         className="rounded-2xl p-3.5 flex items-start gap-2.5"
-        style={{ background: 'rgba(14,16,48,0.04)', border: '1px solid rgba(14,16,48,0.07)' }}
+        style={{ background: 'rgba(24,165,139,0.07)', border: '1px solid rgba(24,165,139,0.18)' }}
       >
-        <ShieldCheck className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--ink)' }} />
+        <ShieldCheck className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--success-text)' }} />
         <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
           Your payment is held until the bill is fulfilled, and returned automatically after 30 minutes if it is not.
         </p>
@@ -212,7 +185,7 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
         disabled={!ready || isPending || isConfirming}
         className="w-full rounded-2xl py-3.5 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
-          background: ready && !isPending && !isConfirming ? '#F2A900' : 'rgba(27,31,75,0.12)',
+          background: ready && !isPending && !isConfirming ? '#F3B51C' : 'var(--surface-muted)',
           color: ready && !isPending && !isConfirming ? '#1B1F4B' : 'var(--ink)',
         }}
       >
