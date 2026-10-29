@@ -66,10 +66,13 @@ contract Deploy is Script {
     uint96 internal constant T1_DAILY       = 20_000_000_000;  // 20,000 USDC  ← corrected (was 20_000_000_000_000)
     uint96 internal constant T2_PER_PAYMENT = 20_000_000_000;  // 20,000 USDC per payment for Tier 2
     uint96 internal constant T2_DAILY       = 0;               // unlimited (0 = no cap)
-    uint96 internal constant GLOBAL_CAP     = 25_000_000;      //     25 USDC global ceiling
-    uint8  internal constant MIN_BILL_TIER  = 1;
-    uint32 internal constant ORDER_TIMEOUT  = 1800;            // 30 minutes
-    uint16 internal constant INITIAL_FEE_BPS = 0;             // 0% fee at launch
+    uint96 internal constant GLOBAL_CAP      = 25_000_000;      //     25 USDC global ceiling (all wallets)
+    // MIN_BILL_TIER = 0: escrow is permissionless at launch.
+    // The minBillTier config key is retained for future governance; set to 0 here
+    // so any wallet can create an escrow order without identity verification.
+    uint8  internal constant MIN_BILL_TIER   = 0;
+    uint32 internal constant ORDER_TIMEOUT   = 1800;            // 30 minutes
+    uint16 internal constant INITIAL_FEE_BPS = 0;              // 0% fee at launch
 
     function run() external {
         // ── Read required env vars ────────────────────────────────────────────
