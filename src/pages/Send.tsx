@@ -3,6 +3,7 @@ import { type Hex } from 'viem'
 import { SendForm } from '../components/send/SendForm'
 import { Permit2Notice } from '../components/shared/Permit2Notice'
 import { ChainGuard } from '../components/shared/ChainGuard'
+import { PageHeader } from '../components/ui'
 
 export function Send() {
   const [params] = useSearchParams()
@@ -12,10 +13,11 @@ export function Send() {
   const requestId = params.get('requestId') as Hex | undefined
 
   return (
-    <div className="space-y-3">
-      <h1 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
-        {requestId ? 'Pay request' : 'Send USDC'}
-      </h1>
+    <div className="space-y-4">
+      <PageHeader
+        title={requestId ? 'Pay request' : 'Send USDC'}
+        subtitle={requestId ? 'Completing a payment request' : 'Send to any @handle or address'}
+      />
       <ChainGuard>
         <Permit2Notice />
       </ChainGuard>

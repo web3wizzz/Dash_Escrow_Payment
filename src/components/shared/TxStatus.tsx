@@ -69,8 +69,8 @@ export function TxStatus({
             <div
               className="rounded-2xl p-3.5 flex items-center gap-3"
               style={{
-                background: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(255,255,255,0.56)',
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
               }}
             >
               <Loader2

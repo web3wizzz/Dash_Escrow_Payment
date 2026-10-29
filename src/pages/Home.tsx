@@ -1,5 +1,5 @@
 /**
- * Home — balance overview, quick actions, bill orders, limits, and activity.
+ * Home — balance overview, quick actions, protected payments, limits, activity.
  */
 
 import { BalanceHero } from '../components/home/BalanceHero'
@@ -16,20 +16,20 @@ export function Home() {
   return (
     <div className="space-y-4 pb-2">
       {/* App bar */}
-      <div className="flex items-center justify-between pt-1 pb-2">
+      <div className="flex items-center justify-between pt-1 pb-1">
         <span
           className="display text-xl font-bold"
-          style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}
+          style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}
         >
           {BRAND.name}
         </span>
         <SandboxBadge />
       </div>
 
-      {/* Balance hero card (connected or connect-CTA) */}
+      {/* Balance hero — navy card with live USDC balance */}
       <BalanceHero />
 
-      {/* Quick-action circles + bill shortcuts */}
+      {/* Quick-action circles */}
       <QuickActions />
 
       {/* Protected bill payments */}

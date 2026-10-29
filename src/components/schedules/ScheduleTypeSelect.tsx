@@ -1,7 +1,8 @@
 /**
- * ScheduleTypeSelect — five schedule type chips with one-line descriptions.
+ * ScheduleTypeSelect — five schedule type tiles with icons and descriptions.
  */
 
+import { motion } from 'framer-motion'
 import { Clock, Repeat, TrendingUp, Users, Waves } from 'lucide-react'
 import { ScheduleType, SCHEDULE_TYPE_LABELS, SCHEDULE_TYPE_DESCRIPTIONS, type ScheduleTypeValue } from '../../lib/schedules'
 
@@ -23,39 +24,65 @@ export function ScheduleTypeSelect({ value, onChange }: ScheduleTypeSelectProps)
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)', letterSpacing: '0.06em' }}>
+      <p
+        className="text-[11px] font-bold uppercase"
+        style={{ color: 'var(--muted)', letterSpacing: '0.09em' }}
+      >
         Schedule type
       </p>
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 gap-1.5">
         {types.map((t) => {
           const Icon = TYPE_ICONS[t]
           const active = value === t
           return (
-            <button
+            <motion.button
               key={t}
               type="button"
               onClick={() => onChange(t)}
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all min-h-[44px]"
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left w-full transition-all active:scale-[0.98] min-h-[52px]"
               style={{
-                background: active ? 'rgba(242,169,0,0.12)' : 'rgba(255,255,255,0.55)',
-                border: active ? '1.5px solid rgba(242,169,0,0.45)' : '1px solid rgba(27,31,75,0.08)',
+                background: active ? 'rgba(243,181,28,0.10)' : 'var(--surface-elevated)',
+                border: active ? '1.5px solid rgba(243,181,28,0.40)' : '1.5px solid var(--border)',
+                boxShadow: active ? '0 2px 10px rgba(243,181,28,0.12)' : 'none',
               }}
+              initial={false}
+              animate={{
+                scale: active ? 1 : 1,
+              }}
+              transition={{ duration: 0.12 }}
             >
               <span
-                className="flex size-9 shrink-0 items-center justify-center rounded-xl"
-                style={{ background: active ? 'rgba(242,169,0,0.20)' : 'rgba(27,31,75,0.06)' }}
+                className="flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors"
+                style={{
+                  background: active ? 'rgba(243,181,28,0.20)' : 'var(--surface-muted)',
+                }}
               >
-                <Icon className="size-4" style={{ color: active ? '#b47900' : 'var(--ink)' }} />
+                <Icon
+                  className="size-4"
+                  style={{ color: active ? '#A07210' : 'var(--muted)' }}
+                  strokeWidth={active ? 2.2 : 1.8}
+                />
               </span>
-              <span className="min-w-0">
-                <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+              <span className="min-w-0 flex-1">
+                <p
+                  className="text-sm font-bold"
+                  style={{ color: active ? 'var(--ink)' : 'var(--ink-2)' }}
+                >
                   {SCHEDULE_TYPE_LABELS[t]}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--muted)' }}>
                   {SCHEDULE_TYPE_DESCRIPTIONS[t]}
                 </p>
               </span>
-            </button>
+              {/* Active dot */}
+              <span
+                className="size-2 rounded-full shrink-0 transition-all"
+                style={{
+                  background: active ? 'var(--gold)' : 'transparent',
+                  boxShadow: active ? '0 0 6px rgba(243,181,28,0.5)' : 'none',
+                }}
+              />
+            </motion.button>
           )
         })}
       </div>

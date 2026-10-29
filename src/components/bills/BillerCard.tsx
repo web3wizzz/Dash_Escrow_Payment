@@ -16,11 +16,11 @@ const CATEGORY_ICON: Record<BillerCategory, React.FC<{ className?: string; style
 }
 
 const CATEGORY_COLOR: Record<BillerCategory, string> = {
-  'Airtime':     'rgba(242,169,0,0.15)',
-  'Data':        'rgba(14,16,48,0.10)',
-  'Electricity': 'rgba(242,169,0,0.15)',
-  'Cable TV':    'rgba(27,31,75,0.08)',
-  'Arc apps':    'rgba(14,16,48,0.10)',
+  'Airtime':     'var(--gold-muted)',
+  'Data':        'rgba(16,25,52,0.08)',
+  'Electricity': 'var(--gold-muted)',
+  'Cable TV':    'rgba(16,25,52,0.08)',
+  'Arc apps':    'rgba(24,165,139,0.10)',
 }
 
 const CATEGORY_ICON_COLOR: Record<BillerCategory, string> = {
@@ -54,11 +54,11 @@ export function BillerCard({ biller, selected, onSelect, onFavoriteChange }: Bil
       onClick={() => onSelect(biller)}
       className="w-full text-left rounded-2xl p-3.5 transition-all active:scale-[0.98] min-h-[56px]"
       style={{
-        background: selected ? 'rgba(27,31,75,0.07)' : 'rgba(255,255,255,0.72)',
+        background: selected ? 'var(--gold-muted)' : 'var(--surface-elevated)',
         border: selected
-          ? '1.5px solid rgba(27,31,75,0.25)'
-          : '1px solid rgba(27,31,75,0.08)',
-        boxShadow: selected ? 'none' : '0 1px 4px rgba(27,31,75,0.04)',
+          ? '1.5px solid rgba(243,181,28,0.40)'
+          : '1px solid var(--border)',
+        boxShadow: selected ? '0 0 0 3px rgba(243,181,28,0.12)' : '0 1px 4px rgba(16,25,52,0.04)',
       }}
     >
       <div className="flex items-center gap-3">

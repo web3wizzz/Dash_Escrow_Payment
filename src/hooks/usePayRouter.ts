@@ -29,7 +29,7 @@ import {
 // The contract passes the full string including TokenPermissions to Permit2 on-chain.
 import { hashAccountDetail, hashOrderRef } from '../lib/hash'
 
-const PAY_ROUTER_ADDRESS = (
+export const PAY_ROUTER_ADDRESS = (
   import.meta.env.VITE_PAY_ROUTER_ADDRESS ?? '0x0000000000000000000000000000000000000000'
 ) as Address
 

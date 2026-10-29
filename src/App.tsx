@@ -1,36 +1,41 @@
 /**
- * App — router, layout shell, Web3Provider wrapper.
+ * App — router, layout shell, welcome screen, and bottom nav.
  */
 
 import { BrowserRouter, Routes, Route, NavLink, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home as HomeIcon, Zap, User, QrCode, CalendarClock } from 'lucide-react'
+import { useAccount } from 'wagmi'
+import { Home as HomeIcon, CreditCard, User, CalendarClock } from 'lucide-react'
+import { DashWordmark, DashIcon } from './components/shared/DashLogo'
 import { Home } from './pages/Home'
 import { Send } from './pages/Send'
 import { Request } from './pages/Request'
 import { Scan } from './pages/Scan'
 import { Bills } from './pages/Bills'
+import { Payments } from './pages/Payments'
 import { OrderStatusPage } from './pages/OrderStatusPage'
 import { Settings } from './pages/Settings'
 import { Profile } from './pages/Profile'
 import { Schedules } from './pages/Schedules'
 import { ScheduleCreate } from './pages/ScheduleCreate'
 import { ScheduleDetail } from './pages/ScheduleDetail'
+import { WelcomeScreen } from './components/shared/WelcomeScreen'
 
-const fadeUp = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -4 },
-  transition: { duration: 0.18, ease: [0.25, 0.1, 0.25, 1.0] },
+const pageVariants = {
+  initial:    { opacity: 0, y: 8 },
+  animate:    { opacity: 1, y: 0 },
+  exit:       { opacity: 0, y: -5 },
+  transition: { duration: 0.18, ease: [0.25, 0.1, 0.25, 1.0] as [number,number,number,number] },
 }
 
-// Four corner tabs — Send and Request live on Home, not in the nav
+// ─── Bottom navigation ───────────────────────────────────────────────────────
+
 const tabItems = [
-  { to: '/',          icon: HomeIcon,     label: 'Home',      exact: true },
+  { to: '/',          icon: HomeIcon,      label: 'Home',      exact: true },
   { to: '/schedules', icon: CalendarClock, label: 'Schedules', exact: false },
-  null, // center slot — occupied by raised Scan button
-  { to: '/bills',     icon: Zap,          label: 'Bills',     exact: false },
-  { to: '/profile',   icon: User,         label: 'Profile',   exact: false },
+  null, // center FAB slot
+  { to: '/payments',  icon: CreditCard,    label: 'Payments',  exact: false },
+  { to: '/profile',   icon: User,          label: 'Profile',   exact: false },
 ]
 
 function BottomNav() {
@@ -39,44 +44,38 @@ function BottomNav() {
       aria-label="Main navigation"
       className="fixed bottom-0 inset-x-0 z-40"
       style={{
-        background: 'rgba(245,247,251,0.92)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderTop: '1px solid rgba(27,31,75,0.09)',
+        background: 'rgba(246,248,252,0.90)',
+        backdropFilter: 'blur(24px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+        borderTop: '1px solid rgba(16,25,52,0.08)',
       }}
     >
-      {/* Tab row — 5-column grid: 2 tabs | center button | 2 tabs */}
       <div
         className="grid grid-cols-5 items-end mx-auto max-w-md"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom, 12px)',
-          paddingTop: 6,
-          paddingLeft: 8,
-          paddingRight: 8,
+          paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)',
+          paddingTop: 4,
+          paddingLeft: 4,
+          paddingRight: 4,
         }}
       >
         {tabItems.map((item, _i) => {
-          // Center slot — raised saffron Scan FAB
           if (item === null) {
             return (
-              <div key="scan-fab" className="flex flex-col items-center">
-                {/* Lift the button above the bar */}
+              <div key="scan-fab" className="flex flex-col items-center pb-1">
                 <Link
                   to="/scan"
                   aria-label="Scan QR code"
-                  className="flex items-center justify-center rounded-full shadow-lg transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron"
+                  className="transition-transform active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-2xl"
                   style={{
-                    width: 56,
-                    height: 56,
-                    background: '#F2A900',
-                    boxShadow: '0 4px 18px rgba(242,169,0,0.45), 0 1px 4px rgba(0,0,0,0.12)',
-                    marginBottom: 8,
-                    marginTop: -20,
+                    marginTop: -22,
+                    marginBottom: 2,
+                    filter: 'drop-shadow(0 4px 12px rgba(243,181,28,0.50))',
                   }}
                 >
-                  <QrCode className="size-6" style={{ color: '#0E1030' }} strokeWidth={2.2} />
+                  <DashIcon size={52} dark />
                 </Link>
-                <span className="text-[10px] font-semibold" style={{ color: 'var(--muted)', marginBottom: 4 }}>
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--muted)' }}>
                   Scan
                 </span>
               </div>
@@ -88,24 +87,30 @@ function BottomNav() {
               key={item.to}
               to={item.to}
               end={item.exact}
-              className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all min-w-[44px] min-h-[44px] justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron"
-              style={({ isActive }) => ({
-                color: isActive ? 'var(--ink)' : 'var(--subtle)',
-              })}
+              className="flex flex-col items-center gap-0.5 py-2 rounded-2xl transition-all min-w-[44px] min-h-[44px] justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+              style={({ isActive }) => ({ color: isActive ? 'var(--navy)' : 'var(--subtle)' })}
             >
               {({ isActive }) => (
                 <>
-                  <span
-                    className="flex items-center justify-center size-7 rounded-xl transition-all"
-                    style={{
-                      background: isActive ? 'var(--saffron-muted)' : 'transparent',
+                  <motion.span
+                    className="flex items-center justify-center size-7 rounded-xl"
+                    animate={{
+                      background: isActive ? 'rgba(243,181,28,0.16)' : 'transparent',
+                      scale: isActive ? 1.08 : 1,
                     }}
+                    transition={{ duration: 0.15 }}
                   >
-                    <item.icon className="size-[18px]" strokeWidth={isActive ? 2.4 : 1.8} />
-                  </span>
+                    <item.icon
+                      className="size-[18px]"
+                      strokeWidth={isActive ? 2.4 : 1.8}
+                    />
+                  </motion.span>
                   <span
                     className="text-[10px] font-semibold"
-                    style={{ color: isActive ? 'var(--ink)' : 'var(--subtle)', letterSpacing: '0.01em' }}
+                    style={{
+                      color: isActive ? 'var(--navy)' : 'var(--subtle)',
+                      letterSpacing: '0.01em',
+                    }}
                   >
                     {item.label}
                   </span>
@@ -119,45 +124,57 @@ function BottomNav() {
   )
 }
 
+// ─── App shell ───────────────────────────────────────────────────────────────
+
 function AppShell() {
   const location = useLocation()
+  const { isConnected } = useAccount()
+
+  // Show welcome screen when disconnected
+  if (!isConnected) {
+    return <WelcomeScreen />
+  }
 
   return (
-    <div className="relative min-h-dvh" style={{ background: 'var(--bg)' }}>
-      {/* Subtle background accent blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden>
-        <div style={{
-          position: 'absolute', top: '6%', right: '10%',
-          width: 240, height: 240, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(242,169,0,0.10) 0%, transparent 70%)',
-          filter: 'blur(48px)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: '20%', left: '5%',
-          width: 200, height: 200, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(27,31,75,0.06) 0%, transparent 70%)',
-          filter: 'blur(48px)',
-        }} />
-      </div>
+    <div className="relative" style={{ background: 'var(--bg)', minHeight: '100dvh' }}>
+      {/* Top brand strip */}
+      <header
+        className="sticky top-0 z-30 flex items-center justify-between mx-auto max-w-md px-5"
+        style={{
+          height: 52,
+          background: 'rgba(246,248,252,0.88)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid rgba(16,25,52,0.06)',
+        }}
+      >
+        <DashWordmark direction="A" height={22} light />
+        {/* Right side: connect button placeholder (ConnectKit injects into main) */}
+        <div style={{ width: 22 }} />
+      </header>
 
-      {/* Scrollable content — bottom padding clears the nav bar */}
-      <div className="relative z-10 mx-auto max-w-md px-4 pt-5" style={{ paddingBottom: 88 }}>
+      {/* Scrollable content — clears bottom nav */}
+      <div
+        className="relative z-10 mx-auto max-w-md px-4 pt-2"
+        style={{ paddingBottom: 'calc(80px + max(env(safe-area-inset-bottom, 0px), 0px))' }}
+      >
         <main>
-          <AnimatePresence mode="wait">
-            <motion.div key={location.pathname} {...fadeUp}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={location.pathname} {...pageVariants}>
               <Routes location={location}>
-                <Route path="/"              element={<Home />} />
-                <Route path="/send"          element={<Send />} />
-                <Route path="/pay"           element={<Send />} />
-                <Route path="/request"       element={<Request />} />
-                <Route path="/scan"          element={<Scan />} />
-                <Route path="/bills"              element={<Bills />} />
-                <Route path="/orders/:orderId"   element={<OrderStatusPage />} />
-                <Route path="/schedules"          element={<Schedules />} />
-                <Route path="/schedules/new"      element={<ScheduleCreate />} />
-                <Route path="/schedules/:scheduleId" element={<ScheduleDetail />} />
-                <Route path="/settings"           element={<Settings />} />
-                <Route path="/profile"            element={<Profile />} />
+                <Route path="/"                        element={<Home />} />
+                <Route path="/send"                    element={<Send />} />
+                <Route path="/pay"                     element={<Send />} />
+                <Route path="/request"                 element={<Request />} />
+                <Route path="/scan"                    element={<Scan />} />
+                <Route path="/payments"                element={<Payments />} />
+                <Route path="/bills"                   element={<Bills />} />
+                <Route path="/orders/:orderId"         element={<OrderStatusPage />} />
+                <Route path="/schedules"               element={<Schedules />} />
+                <Route path="/schedules/new"           element={<ScheduleCreate />} />
+                <Route path="/schedules/:scheduleId"   element={<ScheduleDetail />} />
+                <Route path="/settings"                element={<Settings />} />
+                <Route path="/profile"                 element={<Profile />} />
               </Routes>
             </motion.div>
           </AnimatePresence>
@@ -168,7 +185,6 @@ function AppShell() {
     </div>
   )
 }
-
 
 export default function App() {
   return (

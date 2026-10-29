@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- DA$H icon — navy background, gold custom dollar-sign glyph -->
+  <rect width="80" height="80" rx="20" fill="#101934"/>
+  <!-- S-body of the custom $ -->
+  <path d="M54 22C54 15 48 10 38 10C25 10 16 16 16 28C16 36 21 41 30 45L46 51C52 53 55 57 55 63C55 70 49 76 38 76C27 76 20 70 17 62L8 66C11 77 24 84 38 84C56 84 64 76 64 62C64 53 58 47 47 43L32 37C25 34 22 30 22 24C22 17 29 12 38 12C48 12 54 18 55 26Z" fill="#F3B51C"/>
+  <!-- Vertical bar — extends above and below content area -->
+  <rect x="36" y="4" width="8" height="72" rx="3" fill="#F3B51C"/>
+</svg>

@@ -13,7 +13,6 @@ export function ScheduleCreate() {
   const navigate = useNavigate()
 
   const handleSuccess = (ids: Hex[]) => {
-    // Navigate to the first created schedule detail page
     if (ids.length > 0) {
       void navigate(`/schedules/${ids[0]}`)
     } else {
@@ -23,17 +22,16 @@ export function ScheduleCreate() {
 
   return (
     <div className="space-y-4">
-      {/* Back button */}
       <button
         onClick={() => { void navigate('/schedules') }}
-        className="flex items-center gap-1.5 text-sm font-semibold min-h-[44px] -ml-1"
+        className="flex items-center gap-1.5 text-sm font-semibold min-h-[44px] -ml-1 transition-opacity hover:opacity-70"
         style={{ color: 'var(--muted)' }}
       >
         <ArrowLeft className="size-4" />
         Schedules
       </button>
 
-      <h1 className="display text-xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+      <h1 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
         New schedule
       </h1>
 

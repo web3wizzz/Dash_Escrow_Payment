@@ -1,7 +1,6 @@
 /**
  * Bills — catalog → pay flow.
- * Panel 1: BillerCatalog (search, categories, recents, favorites).
- * Panel 2: BillOrderForm for the selected biller.
+ * Panel 1: BillerCatalog. Panel 2: BillOrderForm.
  */
 
 import { useState } from 'react'
@@ -13,12 +12,13 @@ import { BillOrderForm } from '../components/bills/BillOrderForm'
 import { Permit2Notice } from '../components/shared/Permit2Notice'
 import { ChainGuard } from '../components/shared/ChainGuard'
 import { type Biller } from '../lib/billers'
+import { PageHeader, Badge } from '../components/ui'
 
-const fadeSlide = {
-  initial: { opacity: 0, x: 18 },
+const slideIn = {
+  initial: { opacity: 0, x: 20 },
   animate: { opacity: 1, x: 0 },
-  exit:    { opacity: 0, x: -18 },
-  transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] },
+  exit:    { opacity: 0, x: -20 },
+  transition: { duration: 0.20, ease: [0.25, 0.1, 0.25, 1.0] },
 }
 
 export function Bills() {
@@ -27,27 +27,23 @@ export function Bills() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between pt-1">
-        <h1 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
-          Pay Bills
-        </h1>
-        <span
-          className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
-          style={{ background: 'rgba(242,169,0,0.14)', color: '#b37800', letterSpacing: '0.06em' }}
-        >
-          Sandbox
-        </span>
-      </div>
+      <PageHeader
+        title="Pay Bills"
+        subtitle="Airtime, data, utilities & more"
+        right={<Badge variant="sandbox">Sandbox</Badge>}
+      />
 
-      {/* Escrow explainer — always visible at top of bills */}
+      {/* Escrow info strip */}
       <div
-        className="rounded-2xl p-3.5 flex items-start gap-2.5"
-        style={{ background: 'rgba(14,16,48,0.04)', border: '1px solid rgba(14,16,48,0.07)' }}
+        className="flex items-start gap-3 rounded-2xl px-4 py-3"
+        style={{
+          background: 'rgba(24,165,139,0.08)',
+          border: '1px solid rgba(24,165,139,0.18)',
+        }}
       >
-        <ShieldCheck className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--ink)' }} />
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
-          Your payment is held until the bill is fulfilled, and returned automatically after 30 minutes if it is not.
+        <ShieldCheck className="size-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--success-text)' }} />
+        <p className="text-xs leading-relaxed font-medium" style={{ color: 'var(--success-text)' }}>
+          Payments are held in escrow until the bill is fulfilled. Automatically refunded after 30 minutes if not processed.
         </p>
       </div>
 
@@ -58,14 +54,14 @@ export function Bills() {
       {/* Two-panel animated transition */}
       <AnimatePresence mode="wait">
         {!selectedBiller ? (
-          <motion.div key="catalog" {...fadeSlide}>
+          <motion.div key="catalog" {...slideIn}>
             <BillerCatalog
               selected={selectedBiller}
               onSelect={setSelectedBiller}
             />
           </motion.div>
         ) : (
-          <motion.div key="form" {...fadeSlide}>
+          <motion.div key="form" {...slideIn}>
             <BillOrderForm
               biller={selectedBiller}
               onBack={() => setSelectedBiller(null)}

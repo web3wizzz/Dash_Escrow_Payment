@@ -145,33 +145,47 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
           {payrollRows.map((row, i) => (
             <div key={i} className="flex gap-2">
               <input
-                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none min-h-[44px]"
-                style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(27,31,75,0.10)', color: 'var(--ink)' }}
+                className="field-input flex-1"
                 placeholder="0x… address"
                 value={row.address}
                 onChange={e => setPayrollRows(rows => rows.map((r, j) => j === i ? { ...r, address: e.target.value } : r))}
               />
               <input
                 inputMode="decimal"
-                className="w-24 rounded-xl px-3 py-2.5 text-sm outline-none min-h-[44px] tabular-nums"
-                style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(27,31,75,0.10)', color: 'var(--ink)' }}
+                className="field-input tabular-nums"
+                style={{ width: '6rem' }}
                 placeholder="USDC"
                 value={row.amount}
                 onChange={e => setPayrollRows(rows => rows.map((r, j) => j === i ? { ...r, amount: e.target.value.replace(/[^0-9.]/g, '') } : r))}
               />
               {payrollRows.length > 1 && (
-                <button onClick={() => setPayrollRows(rows => rows.filter((_, j) => j !== i))} className="flex items-center justify-center size-11 rounded-xl" style={{ background: 'rgba(186,43,76,0.07)' }}>
+                <button
+                  onClick={() => setPayrollRows(rows => rows.filter((_, j) => j !== i))}
+                  className="flex items-center justify-center rounded-xl transition-colors active:scale-95"
+                  style={{ width: 44, height: 44, background: 'var(--danger-muted)', flexShrink: 0 }}
+                >
                   <Trash2 className="size-4" style={{ color: 'var(--danger)' }} />
                 </button>
               )}
             </div>
           ))}
-          <button onClick={() => setPayrollRows(r => [...r, { address: '', amount: '' }])} className="flex items-center gap-1.5 text-xs font-semibold min-h-[44px] px-3" style={{ color: 'var(--accent)' }}>
+          <button
+            onClick={() => setPayrollRows(r => [...r, { address: '', amount: '' }])}
+            className="flex items-center gap-1.5 text-xs font-bold min-h-[44px] px-3 rounded-2xl transition-all active:scale-95"
+            style={{ color: '#9A6E00', background: 'var(--gold-muted)', border: '1px solid rgba(243,181,28,0.25)' }}
+          >
             <Plus className="size-3.5" /> Add recipient
           </button>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--ink)' }}>
-            <span className="font-medium">Payroll period (days)</span>
-            <input type="number" min={1} value={payrollPeriod} onChange={e => setPayrollPeriod(e.target.value)} className="w-16 rounded-lg px-2 py-1 text-center text-sm outline-none" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(27,31,75,0.10)', color: 'var(--ink)' }} />
+          <label className="flex items-center gap-3 text-xs" style={{ color: 'var(--ink)' }}>
+            <span className="font-semibold" style={{ color: 'var(--muted)' }}>Payroll period (days)</span>
+            <input
+              type="number"
+              min={1}
+              value={payrollPeriod}
+              onChange={e => setPayrollPeriod(e.target.value)}
+              className="field-input tabular-nums"
+              style={{ width: '5rem' }}
+            />
           </label>
         </div>
       ) : (
@@ -210,8 +224,8 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
 
       {/* Revocable toggle */}
       <div
-        className="flex items-start gap-3 rounded-2xl px-4 py-3"
-        style={{ background: 'rgba(27,31,75,0.04)', border: '1px solid rgba(27,31,75,0.07)' }}
+        className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
       >
         <Info className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--muted)' }} />
         <div className="flex-1 min-w-0">
@@ -241,14 +255,21 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
       <button
         onClick={() => { void handleSubmit() }}
         disabled={!ready || isPending || isConfirming}
-        className="btn-primary w-full py-3.5 rounded-2xl text-sm font-semibold"
-        style={{ minHeight: 52 }}
+        className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+        style={{
+          background: ready && !isPending && !isConfirming ? '#F3B51C' : 'var(--surface-muted)',
+          color: ready && !isPending && !isConfirming ? '#0A0F1E' : 'var(--muted)',
+          boxShadow: ready && !isPending && !isConfirming ? '0 2px 12px rgba(243,181,28,0.35)' : 'none',
+          minHeight: 54,
+          transition: 'all 0.2s ease',
+        }}
       >
         {isPending
-          ? <span className="flex items-center justify-center gap-2"><Loader2 className="size-4 animate-spin" /> Confirm in wallet…</span>
+          ? <><Loader2 className="size-4 animate-spin" />Confirm in wallet…</>
           : isConfirming
-          ? <span className="flex items-center justify-center gap-2"><Loader2 className="size-4 animate-spin" /> Confirming…</span>
-          : <span className="flex items-center justify-center gap-2"><Lock className="size-4" /> Create schedule</span>}
+          ? <><Loader2 className="size-4 animate-spin" />Confirming on Arc…</>
+          : <><Lock className="size-4" />Create schedule</>
+        }
       </button>
     </div>
   )
@@ -256,8 +277,11 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-semibold uppercase tracking-wide block" style={{ color: 'var(--muted)', letterSpacing: '0.06em' }}>
+    <div className="space-y-1.5">
+      <label
+        className="text-[11px] font-bold uppercase block"
+        style={{ color: 'var(--muted)', letterSpacing: '0.09em' }}
+      >
         {label}
       </label>
       {children}
@@ -265,7 +289,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-// CSS class used above — defined in index.css via @layer
-declare module 'react' {
-  interface HTMLAttributes<T> { class?: string }
-}
+
