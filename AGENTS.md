@@ -41,7 +41,7 @@ Removed tier-gate enforcement from payment paths. Now:
 - `minBillTier = 0` in Deploy script and `config/brand.ts`.
 - KYC immutables and tier storage retained for governance optionality.
 - Daily spend tracking retained in PayRouter (data, not enforcement).
-- Test suite: **234/234 pass** (was 224; 10 new permissionless tests added).
+- Test suite: **234/234 unit+fuzz pass**; **9/9 fork tests pass** (against live Arc Testnet Permit2 via --fork-url).
 - Frontend: TierPill removed from BalanceHero + WalletBar. `BillOrderForm` tier gate removed. `LimitsCard` shows global cap. `limitViolation()` simplified to global-cap only.
 
 ## Deployed Contracts — Arc Testnet (2026-10-28)
@@ -53,14 +53,20 @@ Full manifest: `docs/deployment-manifest.md`
 |---|---|---|
 | HandleRegistry | `0x34cae0957ec0cd2327e134f2008ee111e66ca081` | `0x4c03c375...` |
 | KycRegistry | `0x3a480497c8d48c065dac5fdd46ea339aeb9a8bfd` | `0x46b6652d...` |
-| PayRouter | `0x9f2c221a4c7b0287ea03dca3877676ecc75ba1f8` | `0x8a63db56...` |
+| PayRouter v1 (no billers) | `0x9f2c221a4c7b0287ea03dca3877676ecc75ba1f8` | `0x8a63db56...` |
+| PayRouter v2 (biller registered) | `0x37f2edadf59cf2027cf52f13ed2272a3cf69055b` | `0x53a798de...` |
 | ScheduledPayouts | `0x95f13b64172e6df601fd6cec3f3c0b71d0e6f917` | `0xe22a6703...` |
 
+Active PayRouter: `0x37f2edadf59cf2027cf52f13ed2272a3cf69055b` (biller = platform deployer `0x5B12Ce46...`)
 VITE_* env vars written to .env. Admin role: platform deployer (testnet only).
-No billers registered yet — createOrder will revert. Redeploy with initialBillers or use timelock.
 
-Mainnet status: NO-GO (see docs/mainnet-checklist.md for 4 blockers).
-See `docs/testnet-smoke-test.md` for step-by-step instructions.
+Fork test findings (2026-10-29):
+- Permit2 domain uses name="Permit2": EIP712Domain(string name,uint256 chainId,address verifyingContract)
+- Arc USDC routes transfer/transferFrom through native precompile (0x1800...) — deal() and direct prank-transfer fail in fork mode; use vm.mockCall for ERC-20 movement in fork tests
+- Permit2 witness selector: 0x137c29fe (nested tuple), not 0xe9ef212b (flattened)
+- 9/9 fork EIP-712 tests pass against live Arc Testnet Permit2
+
+Mainnet status: NO-GO. Permit2 EIP-712 blocker cleared. Remaining: role wallets, dedicated biller, real-wallet E2E.
 
 ## Contract Addresses (fill in after deploy)
 ```
