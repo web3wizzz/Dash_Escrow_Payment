@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" aria-label="DA$H">
+  <!-- Outer D shape -->
+  <path d="
+    M 38 22
+    L 38 178
+    L 92 178
+    C 152 178 182 148 182 100
+    C 182 52 152 22 92 22
+    Z
+  " fill="#1B1F4B"/>
+
+  <!-- Inner D cutout -->
+  <path d="
+    M 62 46
+    L 62 154
+    L 90 154
+    C 136 154 156 132 156 100
+    C 156 68 136 46 90 46
+    Z
+  " fill="#F6F7FB"/>
+
+  <!-- Top-left angular slash / speed line (top) -->
+  <path d="M 22 22 L 70 22 L 48 52 L 22 52 Z" fill="#1B1F4B"/>
+
+  <!-- Bottom-left angular slash / speed line (bottom) -->
+  <path d="M 22 148 L 48 148 L 70 178 L 22 178 Z" fill="#1B1F4B"/>
+
+  <!-- Saffron horizontal bar (the $ middle bar) -->
+  <rect x="52" y="90" width="84" height="20" rx="10" fill="#F2A900"/>
+
+  <!-- Dollar sign vertical stroke (top) -->
+  <rect x="93" y="56" width="14" height="36" rx="4" fill="#1B1F4B"/>
+
+  <!-- Dollar sign vertical stroke (bottom) -->
+  <rect x="93" y="108" width="14" height="36" rx="4" fill="#1B1F4B"/>
+</svg>

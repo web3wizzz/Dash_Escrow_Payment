@@ -15,7 +15,7 @@ import { type Biller, recordRecentBiller } from '../../lib/billers'
 const TARGET_CHAIN_ID_local = 5042 // Arc mainnet
 
 const surfaceInner: React.CSSProperties = {
-  background: 'var(--surface-elevated)',
+  background: 'var(--surface)',
   border: '1px solid var(--border)',
   boxShadow: '0 1px 4px rgba(16,25,52,0.04)',
 }
@@ -185,7 +185,7 @@ export function BillOrderForm({ biller, onSuccess, onBack }: BillOrderFormProps)
         disabled={!ready || isPending || isConfirming}
         className="w-full rounded-2xl py-3.5 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
-          background: ready && !isPending && !isConfirming ? '#F3B51C' : 'var(--surface-muted)',
+          background: ready && !isPending && !isConfirming ? 'var(--saffron)' : 'var(--surface-muted)',
           color: ready && !isPending && !isConfirming ? '#1B1F4B' : 'var(--ink)',
         }}
       >

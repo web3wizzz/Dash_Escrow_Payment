@@ -122,3 +122,37 @@ The removal of per-tier enforcement does NOT increase the maximum per-payment lo
 - `BillOrderForm` no longer shows a "verification required" gate.
 - `SendForm` cap display shows the global cap only.
 - `LimitsCard` on the home screen explains the permissionless architecture.
+
+---
+
+## Mainnet Configuration Review (2026-10-31)
+
+### What was reviewed
+`contracts/script/Deploy.s.sol` — the sole deploy script. No other deploy path exists.
+
+### Findings
+
+**No new issues found.** All checks pass.
+
+| Category | Finding |
+|---|---|
+| `delegatecall` in production contracts | None |
+| `selfdestruct` in production contracts | None |
+| Proxy / upgradeability | None — all four contracts are non-upgradeable |
+| Admin user-fund drain path | None — admin controls config only (behind 24h timelock); cannot move escrowed USDC or scheduled deposits |
+| Operator user-fund drain path | None — `fulfillOrder` releases to the snapshotted `order.billerTreasury`; `rejectOrder` returns to `order.payer` |
+| `ScheduledPayouts.withdraw()` | Pull-payment escape hatch scoped to `pendingWithdrawals[msg.sender]` — no admin path, no arbitrary recipient |
+| `reclaimOrder` caller | Permissionless after timeout; USDC always goes to `order.payer`, never to the caller |
+| Biller treasury redirect | Not possible — treasury is snapshotted in `order.billerTreasury` at `createOrder`; `fulfillOrder` sends to that value |
+| Config change timelock | Enforced in `executeConfigChange`: `block.timestamp >= change.queuedAt + 86400` |
+| Deployer role cleanup | `!deployerIsAdmin` guard ensures renounce only runs when safe; 23 deploy invariant tests pass |
+
+### Scope note
+This review covers the production contracts and deploy script only. It does not cover:
+- `contracts/test/` — test-only files, not deployed
+- `contracts/test-helpers/` — mock contracts, not deployed
+- `contracts/script/Create2Factory.sol` / `DeployCreate2.s.sol` — experimental, not used in the mainnet deploy path
+
+### Status
+This is an internal review. **No independent audit has been performed.**
+The project is described as a hackathon/MVP launch with conservative limits (25 USDC global cap, 0% fee, 30-minute escrow timeout). Do not represent it as independently audited or production-ready for high-value deployments.

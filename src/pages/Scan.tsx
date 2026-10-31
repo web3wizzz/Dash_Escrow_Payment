@@ -72,8 +72,8 @@ export function Scan() {
       <div className="space-y-4">
         <PageHeader title="Scan to pay" />
         <div
-          className="rounded-3xl p-8 flex flex-col items-center gap-4 text-center"
-          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+          className="rounded-2xl p-8 flex flex-col items-center gap-4 text-center"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           <span
             className="flex size-14 items-center justify-center rounded-2xl"
@@ -101,7 +101,7 @@ export function Scan() {
 
       {/* Camera view */}
       <div
-        className="relative rounded-3xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden"
         style={{
           aspectRatio: '1',
           background: '#0A0F1E',
@@ -133,9 +133,9 @@ export function Scan() {
                 onClick={() => { void startScan() }}
                 className="flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold transition-all active:scale-95"
                 style={{
-                  background: '#F3B51C',
+                  background: 'var(--saffron)',
                   color: '#0A0F1E',
-                  boxShadow: '0 4px 16px rgba(243,181,28,0.45)',
+                  boxShadow: '0 4px 16px rgba(242,169,0,0.45)',
                 }}
               >
                 <Camera className="size-4" strokeWidth={2.2} />
@@ -151,19 +151,19 @@ export function Scan() {
             {/* Corner guides */}
             <div className="absolute inset-10 pointer-events-none">
               {/* TL */}
-              <div className="absolute top-0 left-0 w-6 h-6" style={{ borderTop: '2.5px solid #F3B51C', borderLeft: '2.5px solid #F3B51C', borderRadius: '3px 0 0 0' }} />
+              <div className="absolute top-0 left-0 w-6 h-6" style={{ borderTop: '2.5px solid var(--saffron)', borderLeft: '2.5px solid var(--saffron)', borderRadius: '3px 0 0 0' }} />
               {/* TR */}
-              <div className="absolute top-0 right-0 w-6 h-6" style={{ borderTop: '2.5px solid #F3B51C', borderRight: '2.5px solid #F3B51C', borderRadius: '0 3px 0 0' }} />
+              <div className="absolute top-0 right-0 w-6 h-6" style={{ borderTop: '2.5px solid var(--saffron)', borderRight: '2.5px solid var(--saffron)', borderRadius: '0 3px 0 0' }} />
               {/* BL */}
-              <div className="absolute bottom-0 left-0 w-6 h-6" style={{ borderBottom: '2.5px solid #F3B51C', borderLeft: '2.5px solid #F3B51C', borderRadius: '0 0 0 3px' }} />
+              <div className="absolute bottom-0 left-0 w-6 h-6" style={{ borderBottom: '2.5px solid var(--saffron)', borderLeft: '2.5px solid var(--saffron)', borderRadius: '0 0 0 3px' }} />
               {/* BR */}
-              <div className="absolute bottom-0 right-0 w-6 h-6" style={{ borderBottom: '2.5px solid #F3B51C', borderRight: '2.5px solid #F3B51C', borderRadius: '0 0 3px 0' }} />
+              <div className="absolute bottom-0 right-0 w-6 h-6" style={{ borderBottom: '2.5px solid var(--saffron)', borderRight: '2.5px solid var(--saffron)', borderRadius: '0 0 3px 0' }} />
             </div>
 
             {/* Scan line */}
             <motion.div
               className="absolute inset-x-10 h-px"
-              style={{ background: 'rgba(243,181,28,0.70)', top: '40%' }}
+              style={{ background: 'rgba(242,169,0,0.70)', top: '40%' }}
               animate={{ top: ['35%', '65%', '35%'] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             />

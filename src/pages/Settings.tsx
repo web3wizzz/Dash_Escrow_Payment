@@ -27,8 +27,8 @@ export function Settings() {
 
       {!isConnected ? (
         <div
-          className="rounded-3xl p-6 text-center"
-          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+          className="rounded-2xl p-6 text-center"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           <p className="text-sm" style={{ color: 'var(--muted)' }}>Connect your wallet to manage settings.</p>
         </div>
@@ -39,8 +39,8 @@ export function Settings() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.20, delay: 0.04 }}
-            className="rounded-3xl overflow-hidden"
-            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(16,25,52,0.04)' }}
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(16,25,52,0.04)' }}
           >
             <div className="px-4 pt-4 pb-1">
               <div className="flex items-center gap-2">
@@ -143,8 +143,8 @@ export function Settings() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.20, delay: 0.08 }}
-            className="rounded-3xl overflow-hidden"
-            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(16,25,52,0.04)' }}
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(16,25,52,0.04)' }}
           >
             <div className="px-4 pt-4 pb-1">
               <div className="flex items-center justify-between">

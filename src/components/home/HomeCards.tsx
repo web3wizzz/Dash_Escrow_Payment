@@ -1,238 +1,350 @@
 /**
- * HomeCards — sections below the balance hero:
- *   • Quick actions + bill shortcuts
- *   • Protected payments / pending orders
- *   • Spend limits card
- *   • Recent activity placeholder
+ * HomeCards — sections below the balance hero.
+ *
+ * UX fixes applied:
+ *  - Send/Request removed from QuickActions (they live in BalanceHero — no duplicate)
+ *  - QuickActions now has: Scan, Escrow, Schedule, Request (deeper flows)
+ *  - Module wrapper: NO border+shadow on every block. Use whitespace + type hierarchy.
+ *  - stagger() only on first mount. Max delay capped at 220ms.
+ *  - SandboxBadge: quiet, top-right only
  */
 
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { Link }   from 'react-router-dom'
 import {
-  ArrowUpRight, ArrowDownLeft, QrCode, Zap,
-  Phone, Wifi, Bolt, ShieldCheck, ArrowRight,
-  CalendarClock, Activity,
+  QrCode, ShieldCheck, CalendarClock, ArrowDownLeft,
+  ArrowRight, Activity, Clock, ChevronRight,
 } from 'lucide-react'
 import { formatUnits } from 'viem'
-import { BRAND } from '../../../config/brand'
-import { SectionLabel, Badge, EmptyState, stagger } from '../ui'
+import { BRAND }   from '../../../config/brand'
+import { stagger } from '../ui'
+import type { ReactNode } from 'react'
 
 // ─── Sandbox badge ────────────────────────────────────────────────────────────
 
 export function SandboxBadge() {
   return (
-    <Badge variant="sandbox">Sandbox</Badge>
+    <span
+      aria-label="Testnet environment"
+      style={{
+        fontFamily: '"Figtree",sans-serif',
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase' as const,
+        color: 'var(--warning)',
+        background: 'var(--warning-muted)',
+        border: '1px solid rgba(204,122,0,0.16)',
+        borderRadius: 6,
+        padding: '2px 8px',
+        lineHeight: '16px',
+        display: 'inline-block',
+      }}
+    >
+      Testnet
+    </span>
   )
 }
 
-// ─── Quick actions ────────────────────────────────────────────────────────────
+// ─── Section head — typography hierarchy, no border ──────────────────────────
 
-const quickActions = [
-  { to: '/send',      label: 'Send',      icon: ArrowUpRight,  bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
-  { to: '/request',   label: 'Request',   icon: ArrowDownLeft, bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
-  { to: '/scan',      label: 'Scan',      icon: QrCode,        bg: 'var(--gold-muted)',       fg: '#9A6E00' },
-  { to: '/payments',  label: 'Payments',  icon: Zap,           bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
-  { to: '/schedules', label: 'Schedule',  icon: CalendarClock, bg: 'rgba(16,25,52,0.07)',    fg: 'var(--navy)' },
-]
+function SectionHead({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <p
+        style={{
+          fontFamily: '"Figtree",sans-serif',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase' as const,
+          color: 'var(--muted)',
+        }}
+      >
+        {children}
+      </p>
+      {action}
+    </div>
+  )
+}
 
-const billShortcuts = [
-  { label: 'Invoice',     icon: Phone, to: '/payments' },
-  { label: 'Escrow',      icon: Wifi,  to: '/payments' },
-  { label: 'Schedule',    icon: Bolt,  to: '/schedules' },
+// ─── Quick actions — 4 items, no Send/Request duplication ─────────────────────
+// Send & Request already live in BalanceHero.
+
+const ACTIONS = [
+  { to: '/scan',      label: 'Scan',     Icon: QrCode,        bg: 'rgba(242,169,0,0.10)',  fg: '#8A6200' },
+  { to: '/payments',  label: 'Escrow',   Icon: ShieldCheck,   bg: 'rgba(26,127,78,0.09)',  fg: 'var(--success)' },
+  { to: '/schedules', label: 'Schedule', Icon: CalendarClock, bg: 'rgba(14,16,48,0.06)',   fg: 'var(--ink)' },
+  { to: '/request',   label: 'Request',  Icon: ArrowDownLeft, bg: 'rgba(14,16,48,0.06)',   fg: 'var(--ink)' },
 ]
 
 export function QuickActions() {
   return (
-    <motion.div className="space-y-3" {...stagger(0)}>
-      {/* Five action pills in a row */}
-      <div className="grid grid-cols-5 gap-1.5">
-        {quickActions.map(({ to, label, icon: Icon, bg, fg }, i) => (
-          <motion.div key={to} {...stagger(i * 0.04)}>
-            <Link
-              to={to}
-              className="flex flex-col items-center gap-1.5 rounded-2xl py-2.5 px-1 text-center transition-all hover:scale-[1.04] active:scale-[0.96] min-h-[44px]"
+    <motion.div
+      className="grid grid-cols-4 gap-2"
+      initial="hidden"
+      animate="visible"
+    >
+      {ACTIONS.map(({ to, label, Icon, bg, fg }, i) => (
+        <motion.div
+          key={to}
+          variants={{
+            hidden: { opacity: 0, y: 6 },
+            visible: {
+              opacity: 1, y: 0,
+              transition: { duration: 0.18, delay: Math.min(i * 0.05, 0.18), ease: [0.25,0.1,0.25,1] },
+            },
+          }}
+        >
+          <Link
+            to={to}
+            className="flex flex-col items-center gap-2 py-3 rounded-2xl transition-all active:scale-[0.94]"
+            style={{ background: 'var(--surface)' }}
+            aria-label={label}
+          >
+            <span
+              className="flex items-center justify-center rounded-xl"
+              style={{ width: 40, height: 36, background: bg }}
+              aria-hidden
             >
-              <span
-                className="flex size-10 items-center justify-center rounded-xl"
-                style={{ background: bg }}
-              >
-                <Icon className="size-[18px]" style={{ color: fg }} strokeWidth={2} />
-              </span>
-              <span className="text-[10px] font-semibold" style={{ color: 'var(--ink-2)' }}>
-                {label}
-              </span>
-            </Link>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Bill shortcuts */}
-      <div className="grid grid-cols-3 gap-2">
-        {billShortcuts.map(({ label, icon: Icon, to }, i) => (
-          <motion.div key={to} {...stagger(0.14 + i * 0.05)}>
-            <Link
-              to={to}
-              className="flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-all active:scale-[0.97] min-h-[44px]"
+              <Icon className="size-[17px]" style={{ color: fg }} strokeWidth={1.9} />
+            </span>
+            <span
               style={{
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--border)',
+                fontFamily: '"Figtree",sans-serif',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--muted)',
               }}
             >
-              <Icon className="size-4 flex-shrink-0" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />
-              <span className="text-xs font-semibold truncate" style={{ color: 'var(--ink-2)' }}>{label}</span>
-            </Link>
-          </motion.div>
-        ))}
-      </div>
+              {label}
+            </span>
+          </Link>
+        </motion.div>
+      ))}
     </motion.div>
   )
+}
+
+// ─── Flat section — no border card, whitespace only ──────────────────────────
+
+function Section({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  return (
+    <motion.div {...stagger(delay)}>
+      {children}
+    </motion.div>
+  )
+}
+
+// ─── List row ─────────────────────────────────────────────────────────────────
+
+function ListRow({
+  icon, iconBg, label, meta, value, to,
+}: {
+  icon: ReactNode; iconBg: string; label: string; meta?: string
+  value?: ReactNode; to?: string
+}) {
+  const inner = (
+    <div
+      className="flex items-center gap-3 py-3.5 min-h-[56px]"
+      style={{ borderBottom: '1px solid var(--border)' }}
+    >
+      <span
+        aria-hidden
+        className="flex items-center justify-center rounded-xl flex-shrink-0"
+        style={{ width: 36, height: 36, background: iconBg }}
+      >
+        {icon}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+          {label}
+        </p>
+        {meta && (
+          <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
+            {meta}
+          </p>
+        )}
+      </div>
+      {value && (
+        <div style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'right' as const, flexShrink: 0 }}>
+          {value}
+        </div>
+      )}
+      {to && <ChevronRight className="size-4 flex-shrink-0 text-[var(--subtle)]" />}
+    </div>
+  )
+
+  if (to) {
+    return (
+      <Link to={to} className="block transition-colors hover:bg-slate-50/60 active:bg-slate-100/80 -mx-1 px-1 rounded-lg">
+        {inner}
+      </Link>
+    )
+  }
+  return <div>{inner}</div>
 }
 
 // ─── Protected payments ───────────────────────────────────────────────────────
 
 export function ProtectedPayments() {
-  // Live: would read pending bill orders filtered by wallet from an indexer.
-  // Contracts not deployed yet — show empty state + explanation.
   const pendingOrders: never[] = []
 
   return (
-    <motion.div
-      className="rounded-3xl overflow-hidden"
-      style={{
-        background: 'var(--surface-elevated)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
-      }}
-      {...stagger(0.10)}
-    >
-      {/* Header strip */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          <span
-            className="flex size-7 items-center justify-center rounded-xl"
-            style={{ background: 'rgba(24,165,139,0.12)' }}
+    <Section delay={0.08}>
+      <SectionHead
+        action={
+          <Link
+            to="/payments"
+            className="flex items-center gap-0.5 text-[11px] font-semibold transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F2A900] rounded"
+            style={{ color: 'var(--saffron)', fontFamily: '"Figtree",sans-serif' }}
           >
-            <ShieldCheck className="size-3.5" style={{ color: 'var(--success-text)' }} strokeWidth={2} />
-          </span>
-          <SectionLabel>Protected payments</SectionLabel>
-        </div>
-        <Badge variant="sandbox">Sandbox</Badge>
-      </div>
+            View all <ArrowRight className="size-3" aria-hidden />
+          </Link>
+        }
+      >
+        Protected payments
+      </SectionHead>
 
-      <div className="px-4 pb-4">
-        <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted)' }}>
-          Bill payments are held in escrow until fulfilled. Automatically refunded after 30 minutes if not processed.
-        </p>
-
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)' }}>
         {pendingOrders.length === 0 ? (
-          <div className="rounded-2xl py-5 px-4 flex flex-col items-center gap-2 text-center"
-            style={{ background: 'var(--surface-muted)' }}>
-            <ShieldCheck className="size-7" style={{ color: 'var(--subtle)' }} strokeWidth={1.4} />
-            <p className="text-xs" style={{ color: 'var(--subtle)' }}>No pending orders</p>
+          <div className="flex items-center gap-3 px-4 py-4">
+            <span
+              aria-hidden
+              className="flex items-center justify-center rounded-xl flex-shrink-0"
+              style={{ width: 36, height: 36, background: 'rgba(26,127,78,0.09)' }}
+            >
+              <ShieldCheck className="size-4" style={{ color: 'var(--success)' }} strokeWidth={1.8} />
+            </span>
+            <div>
+              <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                No pending orders
+              </p>
+              <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                Escrow payments auto-refund after 30 min
+              </p>
+            </div>
           </div>
         ) : null}
 
-        <Link
-          to="/payments"
-          className="mt-3 flex items-center gap-1 text-xs font-bold transition-opacity hover:opacity-70"
-          style={{ color: 'var(--gold-hover)' }}
-        >
-          Open Payments hub
-          <ArrowRight className="size-3.5" />
-        </Link>
+        <div className="px-4 pb-4 pt-1">
+          <Link
+            to="/payments"
+            className="flex items-center justify-center gap-1.5 w-full rounded-xl py-2.5 text-[13px] font-semibold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F2A900]"
+            style={{
+              background: 'var(--surface-muted)',
+              color: 'var(--ink)',
+              fontFamily: '"Figtree",sans-serif',
+              minHeight: 44,
+            }}
+            aria-label="Create an escrow order"
+          >
+            Create escrow order
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </div>
       </div>
-    </motion.div>
+    </Section>
   )
 }
 
-// ─── Spend limits card ────────────────────────────────────────────────────────
+// ─── Scheduled / limits ───────────────────────────────────────────────────────
 
 export function LimitsCard() {
-  const { address } = useAccount()
-
-  // All payments use the global per-payment cap. No identity verification required.
-  const globalCapFormatted = `$${parseFloat(formatUnits(25_000_000n, 6)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  const globalCapFormatted = `$${parseFloat(formatUnits(25_000_000n, 6)).toFixed(0)}`
 
   return (
-    <motion.div
-      className="rounded-3xl"
-      style={{
-        background: 'var(--surface-elevated)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
-      }}
-      {...stagger(0.14)}
-    >
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <SectionLabel>Payment limit</SectionLabel>
-        <Badge variant="success">Permissionless</Badge>
-      </div>
+    <Section delay={0.12}>
+      <SectionHead
+        action={
+          <Link
+            to="/schedules"
+            className="flex items-center gap-0.5 text-[11px] font-semibold transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F2A900] rounded"
+            style={{ color: 'var(--saffron)', fontFamily: '"Figtree",sans-serif' }}
+          >
+            View all <ArrowRight className="size-3" aria-hidden />
+          </Link>
+        }
+      >
+        Scheduled
+      </SectionHead>
 
-      <div className="px-4 pb-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-2xl p-3" style={{ background: 'var(--surface-muted)' }}>
-            <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>
-              Per payment
-            </p>
-            <p className="display text-lg font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{globalCapFormatted}</p>
-          </div>
-          <div className="rounded-2xl p-3" style={{ background: 'var(--surface-muted)' }}>
-            <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--subtle)', letterSpacing: '0.07em' }}>
-              Required KYC
-            </p>
-            <p className="display text-lg font-bold" style={{ color: 'var(--teal)' }}>None</p>
-          </div>
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', padding: '0 16px' }}>
+        <ListRow
+          icon={<Clock className="size-4" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />}
+          iconBg="rgba(14,16,48,0.05)"
+          label="Claimable now"
+          meta="No claimable payouts"
+        />
+        <ListRow
+          icon={<CalendarClock className="size-4" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />}
+          iconBg="rgba(14,16,48,0.05)"
+          label="Per-payment cap"
+          meta={`${globalCapFormatted} USDC · permissionless`}
+          value={
+            <span
+              style={{
+                background: 'rgba(26,127,78,0.10)',
+                color: 'var(--success-text)',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase' as const,
+                borderRadius: 6,
+                padding: '2px 7px',
+                fontFamily: '"Figtree",sans-serif',
+              }}
+            >
+              Active
+            </span>
+          }
+        />
+        <div className="py-4">
+          <Link
+            to="/schedules/new"
+            className="flex items-center justify-center gap-1.5 w-full rounded-xl py-2.5 text-[13px] font-semibold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F2A900]"
+            style={{
+              background: 'var(--surface-muted)',
+              color: 'var(--ink)',
+              fontFamily: '"Figtree",sans-serif',
+              minHeight: 44,
+            }}
+            aria-label="Create a new scheduled payment"
+          >
+            Create schedule
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
         </div>
-
-        {/* Usage bar — $0.00 until on-chain daily spend tracking ships */}
-        {address && (
-          <div>
-            <div className="flex justify-between text-[11px] mb-1.5" style={{ color: 'var(--muted)' }}>
-              <span>Today&apos;s usage</span>
-              <span className="tabular-nums font-semibold">$0.00</span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-muted)' }}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: '0%', background: 'var(--gold)' }}
-              />
-            </div>
-          </div>
-        )}
-
-        <p className="text-xs" style={{ color: 'var(--muted)' }}>
-          The {globalCapFormatted} per-payment limit is enforced on-chain and can only be changed by the admin after a 24-hour governance timelock.
-        </p>
       </div>
-    </motion.div>
+    </Section>
   )
 }
 
 // ─── Recent activity ──────────────────────────────────────────────────────────
 
 export function RecentActivity() {
-  // Live activity will come from on-chain event indexer once contracts are deployed.
   return (
-    <motion.div
-      className="rounded-3xl"
-      style={{
-        background: 'var(--surface-elevated)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
-      }}
-      {...stagger(0.18)}
-    >
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <SectionLabel>Activity</SectionLabel>
+    <Section delay={0.16}>
+      <SectionHead>Recent activity</SectionHead>
+
+      {/* Empty state — small and elegant, not a full-height card */}
+      <div className="flex items-center gap-4 py-6 px-1">
+        <span
+          aria-hidden
+          className="flex items-center justify-center rounded-xl flex-shrink-0"
+          style={{ width: 40, height: 40, background: 'var(--surface)' }}
+        >
+          <Activity className="size-[18px]" style={{ color: 'var(--subtle)' }} strokeWidth={1.6} />
+        </span>
+        <div>
+          <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+            No transactions yet
+          </p>
+          <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+            {`Send or receive USDC on ${BRAND.networkName}`}
+          </p>
+        </div>
       </div>
-      <div className="px-4 pb-4">
-        <EmptyState
-          icon={<Activity className="size-6" />}
-          title="No transactions yet"
-          body={`Send or receive USDC on ${BRAND.networkName} to see activity here.`}
-        />
-      </div>
-    </motion.div>
+    </Section>
   )
 }

@@ -46,7 +46,7 @@ function CategoryChips({
       <button
         style={{
           ...chipBase,
-          background: active === null ? 'var(--navy)' : 'var(--surface-elevated)',
+          background: active === null ? 'var(--navy)' : 'var(--surface)',
           color: active === null ? '#fff' : 'var(--ink-2)',
           borderColor: active === null ? 'var(--navy)' : 'var(--border)',
         }}
@@ -59,9 +59,9 @@ function CategoryChips({
           key={cat}
           style={{
             ...chipBase,
-            background: active === cat ? '#F3B51C' : 'var(--surface-elevated)',
+            background: active === cat ? 'var(--saffron)' : 'var(--surface)',
             color: active === cat ? '#0A0F1E' : 'var(--ink-2)',
-            borderColor: active === cat ? '#F3B51C' : 'var(--border)',
+            borderColor: active === cat ? 'var(--saffron)' : 'var(--border)',
           }}
           onClick={() => onChange(cat === active ? null : cat)}
         >
@@ -125,7 +125,7 @@ export function BillerCatalog({ selected, onSelect }: BillerCatalogProps) {
       <div
         className="flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5"
         style={{
-          background: 'var(--surface-elevated)',
+          background: 'var(--surface)',
           border: '1px solid var(--border)',
           boxShadow: '0 1px 4px rgba(16,25,52,0.04)',
         }}

@@ -35,8 +35,8 @@ function EscrowLifecycle() {
   const states = [
     {
       icon: ShieldCheck,
-      color: '#F3B51C',
-      bg: 'rgba(243,181,28,0.12)',
+      color: 'var(--saffron)',
+      bg: 'rgba(242,169,0,0.12)',
       label: 'Pending',
       body: 'USDC is locked in the PayRouter contract. Neither party can access it.',
     },
@@ -69,7 +69,7 @@ function EscrowLifecycle() {
         <div
           key={label}
           className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
-          style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           <span
             className="flex size-8 items-center justify-center rounded-xl flex-shrink-0 mt-0.5"
@@ -129,7 +129,7 @@ export function EscrowPanel({ onBack }: { onBack: () => void }) {
         <motion.div
           {...stagger(0.04)}
           className="flex items-start gap-2.5 rounded-2xl px-4 py-3"
-          style={{ background: 'rgba(243,181,28,0.09)', border: '1px solid rgba(243,181,28,0.20)' }}
+          style={{ background: 'rgba(242,169,0,0.09)', border: '1px solid rgba(242,169,0,0.20)' }}
         >
           <ShieldCheck className="size-4 mt-0.5 flex-shrink-0" style={{ color: '#9A6E00' }} />
           <p className="text-xs leading-relaxed font-medium" style={{ color: '#9A6E00' }}>
@@ -207,8 +207,8 @@ export function EscrowPanel({ onBack }: { onBack: () => void }) {
 
             {/* Timeline */}
             <div
-              className="rounded-3xl overflow-hidden"
-              style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+              className="rounded-2xl overflow-hidden"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
               <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                 <p className="text-xs font-bold" style={{ color: 'var(--ink)' }}>Escrow timeline</p>

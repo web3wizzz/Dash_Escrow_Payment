@@ -43,7 +43,7 @@ function OrderContent({ orderId }: { orderId: Hex }) {
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-40 w-full rounded-3xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
         <Skeleton className="h-20 w-full rounded-2xl" />
       </div>
     )
@@ -77,9 +77,9 @@ function OrderContent({ orderId }: { orderId: Hex }) {
     >
       {/* Main status card */}
       <div
-        className="rounded-3xl overflow-hidden"
+        className="rounded-2xl overflow-hidden"
         style={{
-          background: 'var(--surface-elevated)',
+          background: 'var(--surface)',
           border: '1px solid var(--border)',
           boxShadow: '0 4px 20px rgba(16,25,52,0.06)',
         }}
@@ -149,8 +149,8 @@ function OrderContent({ orderId }: { orderId: Hex }) {
             exit={{ opacity: 0, y: -4 }}
             className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
             style={{
-              background: 'rgba(243,181,28,0.09)',
-              border: '1px solid rgba(243,181,28,0.22)',
+              background: 'rgba(242,169,0,0.09)',
+              border: '1px solid rgba(242,169,0,0.22)',
             }}
           >
             <Clock className="size-5 shrink-0" style={{ color: 'var(--warning)' }} />
@@ -215,9 +215,9 @@ function OrderContent({ orderId }: { orderId: Hex }) {
           to="/bills"
           className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.97]"
           style={{
-            background: '#F3B51C',
+            background: 'var(--saffron)',
             color: '#0A0F1E',
-            boxShadow: '0 2px 10px rgba(243,181,28,0.35)',
+            boxShadow: '0 2px 10px rgba(242,169,0,0.35)',
             minHeight: 48,
           }}
         >

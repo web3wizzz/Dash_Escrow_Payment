@@ -109,8 +109,8 @@ export function ScheduleDetail() {
       <div className="space-y-4 pt-2">
         <BackButton onBack={() => { void navigate('/schedules') }} />
         <Skeleton className="h-8 w-56 rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-3xl" />
-        <Skeleton className="h-24 w-full rounded-3xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
       </div>
     )
   }
@@ -139,9 +139,9 @@ export function ScheduleDetail() {
   return (
     <motion.div
       className="space-y-4"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.20, ease: [0.25, 0.1, 0.25, 1.0] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
     >
       {/* Back + title */}
       <div className="space-y-2 pt-1">
@@ -160,9 +160,9 @@ export function ScheduleDetail() {
       {/* Progress card */}
       {!schedule.cancelled && (
         <div
-          className="rounded-3xl overflow-hidden"
+          className="rounded-2xl overflow-hidden"
           style={{
-            background: 'var(--surface-elevated)',
+            background: 'var(--surface)',
             border: '1px solid var(--border)',
             boxShadow: '0 4px 20px rgba(16,25,52,0.06)',
           }}
@@ -247,9 +247,9 @@ export function ScheduleDetail() {
               disabled={claiming || claimConfirming}
               className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.97] disabled:opacity-40"
               style={{
-                background: '#F3B51C',
+                background: 'var(--saffron)',
                 color: '#0A0F1E',
-                boxShadow: '0 2px 12px rgba(243,181,28,0.38)',
+                boxShadow: '0 2px 12px rgba(242,169,0,0.38)',
                 minHeight: 52,
               }}
             >
@@ -282,9 +282,9 @@ export function ScheduleDetail() {
 
       {/* Detail rows */}
       <div
-        className="rounded-3xl overflow-hidden"
+        className="rounded-2xl overflow-hidden"
         style={{
-          background: 'var(--surface-elevated)',
+          background: 'var(--surface)',
           border: '1px solid var(--border)',
           boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
         }}
@@ -318,12 +318,13 @@ export function ScheduleDetail() {
       <button
         onClick={withdraw}
         disabled={withdrawing || wdConfirming}
-        className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
+        aria-label="Withdraw pending balance if transfer failed"
+        className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-semibold transition-all active:scale-[0.98] disabled:opacity-40"
         style={{
           background: 'var(--surface-muted)',
           color: 'var(--muted)',
           border: '1px solid var(--border)',
-          minHeight: 40,
+          minHeight: 44,
         }}
       >
         <Download className="size-3.5" />
@@ -335,8 +336,9 @@ export function ScheduleDetail() {
         href={buildTxExplorerUrl(TARGET_CHAIN_ID, SCHEDULED_PAYOUTS_ADDRESS) ?? '#'}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98]"
-        style={{ color: 'var(--muted)', background: 'var(--surface-muted)', border: '1px solid var(--border)', minHeight: 40 }}
+        aria-label="View contract on Arc explorer"
+        className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-semibold transition-all active:scale-[0.98]"
+        style={{ color: 'var(--muted)', background: 'var(--surface-muted)', border: '1px solid var(--border)', minHeight: 44 }}
       >
         <ExternalLink className="size-3.5" />
         View contract on explorer

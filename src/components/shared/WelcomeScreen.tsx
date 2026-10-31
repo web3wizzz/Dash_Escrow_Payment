@@ -1,166 +1,198 @@
 /**
  * WelcomeScreen — shown when wallet is not connected.
- * Premium onboarding with product positioning and clear connect CTA.
+ *
+ * Hero: DA$H logo mark on deep indigo, one-line descriptor.
+ * CTA: single saffron "Connect Wallet" button.
+ * Feature list: four restrained rows with Lucide icons.
  */
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ConnectKitButton } from 'connectkit'
 import { ArrowUpRight, Shield, Zap, CalendarClock } from 'lucide-react'
 import { TARGET_CHAIN_ID } from '../../config'
-import { DashWordmark, DashIcon } from './DashLogo'
+import { DashLogoMark } from './DashLogo'
 
 const NETWORK_LABEL = TARGET_CHAIN_ID === 5042 ? 'Arc Mainnet' : 'Arc Testnet'
 
-const features = [
+const FEATURES = [
   {
     icon: ArrowUpRight,
     title: 'Send & Request',
-    body: 'Pay anyone by @handle or address. Share a payment link in seconds.',
+    body: 'Pay any address or share a payment link instantly.',
   },
   {
     icon: Zap,
-    title: 'Escrow & Invoicing',
-    body: 'On-chain escrow for services and freelance work. Funds release only on fulfillment.',
+    title: 'Escrow',
+    body: 'Funds held on-chain until service delivery is confirmed.',
   },
   {
     icon: CalendarClock,
     title: 'Scheduled Payouts',
-    body: 'Allowances, vesting, payroll, and live per-second streams.',
+    body: 'Allowances, vesting, payroll, and per-second streams.',
   },
   {
     icon: Shield,
     title: 'Non-custodial',
-    body: 'Your keys, your USDC. Every payment is individually signed.',
+    body: 'Your keys remain yours. Every payment is individually signed.',
   },
 ]
 
 export function WelcomeScreen() {
+  const reduced = useReducedMotion()
+
   return (
-    <div className="flex flex-col min-h-dvh" style={{ background: 'var(--bg)' }}>
-      {/* Top: Brand hero */}
+    <div
+      className="flex flex-col min-h-dvh"
+      style={{ background: 'var(--bg)', fontFamily: '"Figtree",sans-serif' }}
+    >
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
       <div
-        className="relative overflow-hidden flex flex-col items-center justify-center px-6 pt-16 pb-14 text-center"
+        className="relative flex flex-col items-center justify-center px-6 pt-20 pb-16 text-center"
         style={{
-          background: 'linear-gradient(160deg, #0D1628 0%, #141F40 55%, #0A1020 100%)',
+          background: 'linear-gradient(165deg, #1B1F4B 0%, #0E1030 60%, #080A1C 100%)',
         }}
       >
-        {/* Subtle glow */}
+        {/* Single restrained saffron glow behind the logo */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute"
           style={{
-            background: 'radial-gradient(ellipse 70% 55% at 50% 70%, rgba(243,181,28,0.14) 0%, transparent 70%)',
+            bottom: -30, left: '50%', transform: 'translateX(-50%)',
+            width: 280, height: 140,
+            background: 'radial-gradient(ellipse, rgba(242,169,0,0.16) 0%, transparent 70%)',
+            filter: 'blur(16px)',
           }}
         />
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={reduced ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.38, ease: [0.25, 0.1, 0.25, 1.0] }}
-          className="relative z-10 flex flex-col items-center gap-5"
+          transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1.0] }}
+          className="relative z-10 flex flex-col items-center gap-6"
         >
-          {/* Icon mark */}
+          {/* Logo — spring overshoot kept, but capped at 280ms */}
           <motion.div
-            initial={{ scale: 0.85, opacity: 0 }}
+            initial={reduced ? false : { scale: 0.90, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.42, ease: [0.34, 1.2, 0.64, 1] }}
-            style={{
-              filter: 'drop-shadow(0 0 28px rgba(243,181,28,0.38))',
-            }}
+            transition={{ type: 'spring', stiffness: 380, damping: 28, mass: 0.8 }}
           >
-            <DashIcon size={72} dark />
+            <DashLogoMark size={72} />
           </motion.div>
 
-          <div className="space-y-3">
-            {/* Wordmark */}
-            <div className="flex justify-center">
-              <DashWordmark direction="A" height={38} light={false} />
-            </div>
-            <p
-              className="text-base font-medium max-w-[260px] mx-auto leading-relaxed"
-              style={{ color: 'rgba(255,255,255,0.60)' }}
+          {/* Wordmark */}
+          <div className="space-y-2.5">
+            <h1
+              style={{
+                fontFamily: '"Bricolage Grotesque",sans-serif',
+                fontWeight: 700,
+                fontSize: '2rem',
+                letterSpacing: '-0.04em',
+                color: '#FFFFFF',
+                lineHeight: 1,
+              }}
             >
-              The premium USDC payment platform on Arc
+              DA$H
+            </h1>
+            <p
+              style={{
+                fontSize: 15,
+                fontWeight: 400,
+                color: 'rgba(255,255,255,0.52)',
+                maxWidth: 240,
+                lineHeight: 1.5,
+              }}
+            >
+              USDC payments on Arc
             </p>
           </div>
 
-          {/* Arc indicator */}
+          {/* Network pill */}
           <div
             className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
             style={{
               background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.10)',
             }}
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: '#18A58B' }}
-            />
-            <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            <span className="size-1.5 rounded-full" style={{ background: '#1A7F4E' }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.46)', letterSpacing: '0.04em' }}>
               {NETWORK_LABEL} · USDC
             </span>
           </div>
         </motion.div>
       </div>
 
-      {/* Bottom: Connect + features */}
-      <div className="flex-1 flex flex-col px-5 pt-8 pb-10 max-w-md mx-auto w-full">
+      {/* ── Connect + features ───────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col px-5 pt-7 pb-10 max-w-md mx-auto w-full">
+
         {/* Connect CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={reduced ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.30, delay: 0.12, ease: [0.25, 0.1, 0.25, 1.0] }}
-          className="mb-8"
+          transition={{ duration: 0.20, delay: reduced ? 0 : 0.08, ease: [0.25, 0.1, 0.25, 1.0] }}
+          className="mb-7"
         >
           <ConnectKitButton.Custom>
             {({ show }) => (
               <button
                 onClick={show}
-                className="w-full py-4 text-base font-bold btn-gold-large"
+                className="w-full"
                 style={{
-                  background: '#F3B51C',
-                  color: '#080F22',
-                  borderRadius: '16px',
-                  boxShadow: '0 4px 20px rgba(243,181,28,0.40), 0 1px 0 rgba(255,255,255,0.25) inset',
-                  transition: 'transform 0.1s ease, box-shadow 0.15s ease',
-                  minHeight: 56,
+                  background: 'var(--saffron)',
+                  color: '#0A0B1E',
+                  fontFamily: '"Figtree",sans-serif',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  borderRadius: 14,
+                  minHeight: 54,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.14s ease, transform 0.10s ease',
                 }}
-                onMouseEnter={(e) => { (e.currentTarget).style.boxShadow = '0 6px 28px rgba(243,181,28,0.55), 0 1px 0 rgba(255,255,255,0.25) inset' }}
-                onMouseLeave={(e) => { (e.currentTarget).style.boxShadow = '0 4px 20px rgba(243,181,28,0.40), 0 1px 0 rgba(255,255,255,0.25) inset' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--saffron-hover)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--saffron)' }}
+                onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
+                onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
               >
                 Connect Wallet
               </button>
             )}
           </ConnectKitButton.Custom>
 
-          <p className="mt-3 text-center text-xs" style={{ color: 'var(--muted)' }}>
+          <p style={{ marginTop: 10, textAlign: 'center', fontSize: 12, color: 'var(--subtle)', fontFamily: '"Figtree",sans-serif' }}>
             Non-custodial · Your keys remain yours
           </p>
         </motion.div>
 
-        {/* Feature tiles */}
-        <div className="grid grid-cols-2 gap-3">
-          {features.map(({ icon: Icon, title, body }, i) => (
+        {/* Feature rows */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          {FEATURES.map(({ icon: Icon, title, body }, i) => (
             <motion.div
               key={title}
-              initial={{ opacity: 0, y: 10 }}
+              initial={reduced ? false : { opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: 0.18 + i * 0.06, ease: [0.25, 0.1, 0.25, 1.0] }}
-              className="rounded-2xl p-4"
-              style={{
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--border)',
-                boxShadow: '0 2px 8px rgba(16,25,52,0.04)',
-              }}
+              transition={{ duration: 0.18, delay: reduced ? 0 : 0.10 + i * 0.045, ease: [0.25, 0.1, 0.25, 1.0] }}
             >
-              <span
-                className="flex size-8 items-center justify-center rounded-xl mb-3"
-                style={{ background: 'var(--gold-muted)' }}
-              >
-                <Icon className="size-4" style={{ color: '#A07210' }} strokeWidth={2} />
-              </span>
-              <p className="text-xs font-bold mb-1" style={{ color: 'var(--ink)' }}>{title}</p>
-              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--muted)' }}>{body}</p>
+              {i > 0 && <div style={{ height: 1, background: 'var(--border)', marginLeft: 54 }} />}
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <span
+                  className="flex items-center justify-center rounded-lg flex-shrink-0"
+                  style={{ width: 36, height: 36, background: 'var(--surface-muted)' }}
+                >
+                  <Icon className="size-4" style={{ color: 'var(--muted)' }} strokeWidth={1.8} />
+                </span>
+                <div>
+                  <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                    {title}
+                  </p>
+                  <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 1, lineHeight: 1.4 }}>
+                    {body}
+                  </p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -169,9 +201,8 @@ export function WelcomeScreen() {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.24, delay: 0.48 }}
-          className="mt-6 text-center text-[11px] leading-relaxed"
-          style={{ color: 'var(--subtle)' }}
+          transition={{ duration: 0.22, delay: 0.50 }}
+          style={{ marginTop: 18, textAlign: 'center', fontSize: 11, color: 'var(--subtle)', fontFamily: '"Figtree",sans-serif', lineHeight: 1.5 }}
         >
           Billers and KYC are sandboxed. No real-world services are connected.
         </motion.p>

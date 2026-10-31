@@ -83,8 +83,8 @@ export function InvoicePanel({ onBack }: { onBack: () => void }) {
           className="space-y-3"
         >
           <div
-            className="rounded-3xl overflow-hidden"
-            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             {[
               {

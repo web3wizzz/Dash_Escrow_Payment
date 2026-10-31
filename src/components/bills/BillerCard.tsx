@@ -54,11 +54,11 @@ export function BillerCard({ biller, selected, onSelect, onFavoriteChange }: Bil
       onClick={() => onSelect(biller)}
       className="w-full text-left rounded-2xl p-3.5 transition-all active:scale-[0.98] min-h-[56px]"
       style={{
-        background: selected ? 'var(--gold-muted)' : 'var(--surface-elevated)',
+        background: selected ? 'var(--gold-muted)' : 'var(--surface)',
         border: selected
-          ? '1.5px solid rgba(243,181,28,0.40)'
+          ? '1.5px solid rgba(242,169,0,0.40)'
           : '1px solid var(--border)',
-        boxShadow: selected ? '0 0 0 3px rgba(243,181,28,0.12)' : '0 1px 4px rgba(16,25,52,0.04)',
+        boxShadow: selected ? '0 0 0 3px rgba(242,169,0,0.12)' : '0 1px 4px rgba(16,25,52,0.04)',
       }}
     >
       <div className="flex items-center gap-3">

@@ -37,7 +37,7 @@ export function RequestForm() {
       const dataUrl = await QRCode.toDataURL(base, {
         width: 220,
         margin: 2,
-        color: { dark: '#101934', light: '#FFFFFF' },
+        color: { dark: 'var(--ink)', light: '#FFFFFF' },
       })
       setQrDataUrl(dataUrl)
     } catch {
@@ -54,8 +54,8 @@ export function RequestForm() {
 
   if (!isConnected) {
     return (
-      <div className="rounded-3xl p-6 text-center"
-        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+      <div className="rounded-2xl p-6 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>Connect your wallet to create a payment request.</p>
       </div>
     )
@@ -66,9 +66,9 @@ export function RequestForm() {
   return (
     <div className="space-y-3">
       <div
-        className="rounded-3xl overflow-hidden"
+        className="rounded-2xl overflow-hidden"
         style={{
-          background: 'var(--surface-elevated)',
+          background: 'var(--surface)',
           border: '1px solid var(--border)',
           boxShadow: '0 4px 20px rgba(16,25,52,0.06)',
         }}
@@ -104,7 +104,7 @@ export function RequestForm() {
                 style={{
                   background: amount === q ? 'var(--gold-muted-mid)' : 'var(--surface-muted)',
                   color: amount === q ? '#9A6E00' : 'var(--muted)',
-                  border: amount === q ? '1px solid rgba(243,181,28,0.35)' : '1px solid transparent',
+                  border: amount === q ? '1px solid rgba(242,169,0,0.35)' : '1px solid transparent',
                 }}
               >
                 ${q}
@@ -138,7 +138,7 @@ export function RequestForm() {
             disabled={!amount}
             className="mt-3 w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
             style={{
-              background: amount ? '#101934' : 'var(--surface-muted)',
+              background: amount ? 'var(--ink)' : 'var(--surface-muted)',
               color: amount ? '#fff' : 'var(--muted)',
               boxShadow: amount ? '0 2px 12px rgba(16,25,52,0.25)' : 'none',
               transition: 'all 0.2s ease',
@@ -158,15 +158,15 @@ export function RequestForm() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1.0] }}
-            className="rounded-3xl overflow-hidden"
+            className="rounded-2xl overflow-hidden"
             style={{
-              background: 'var(--surface-elevated)',
+              background: 'var(--surface)',
               border: '1px solid var(--border)',
               boxShadow: '0 4px 20px rgba(16,25,52,0.06)',
             }}
           >
             {/* Gold strip */}
-            <div className="h-1" style={{ background: '#F3B51C' }} />
+            <div className="h-1" style={{ background: 'var(--saffron)' }} />
 
             <div className="p-5 space-y-4">
               {/* QR code */}

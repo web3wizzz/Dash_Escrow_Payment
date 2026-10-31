@@ -4,14 +4,10 @@
  * Never simulates progress.
  */
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, ExternalLink } from 'lucide-react'
 import { buildTxExplorerUrl } from '../../onchain-facts'
 import { TARGET_CHAIN_ID } from '../../config'
-
-const springs = {
-  gentle: { type: 'spring', stiffness: 300, damping: 26 },
-} as const
 
 interface TxStatusProps {
   isPending: boolean
@@ -55,21 +51,22 @@ export function TxStatus({
   onDismiss,
 }: TxStatusProps) {
   const explorerUrl = hash ? buildTxExplorerUrl(TARGET_CHAIN_ID, hash) : undefined
+  const reduced = useReducedMotion()
 
   return (
     <AnimatePresence>
       {(isPending || isConfirming || isSuccess || isError) && (
         <motion.div
-          initial={{ opacity: 0, y: 6 }}
+          initial={reduced ? false : { opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={springs.gentle}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
         >
           {(isPending || isConfirming) && (
             <div
               className="rounded-2xl p-3.5 flex items-center gap-3"
               style={{
-                background: 'var(--surface-elevated)',
+                background: 'var(--surface)',
                 border: '1px solid var(--border)',
               }}
             >

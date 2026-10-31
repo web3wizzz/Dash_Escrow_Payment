@@ -1,44 +1,37 @@
 /**
- * Home — balance overview, quick actions, protected payments, limits, activity.
+ * Home — balance overview, quick actions, secondary modules, activity.
+ *
+ * Layout rules:
+ *  - No page title: the header carries the logo.
+ *  - No duplicate Send/Request: those live inside BalanceHero.
+ *  - space-y-5 (20px) between sections — consistent 4/8px grid.
+ *  - SandboxBadge is the only element above the balance card.
  */
 
-import { BalanceHero } from '../components/home/BalanceHero'
-import {
-  QuickActions,
-  ProtectedPayments,
-  LimitsCard,
-  RecentActivity,
-  SandboxBadge,
-} from '../components/home/HomeCards'
-import { BRAND } from '../../config/brand'
+import { BalanceHero }                              from '../components/home/BalanceHero'
+import { QuickActions, ProtectedPayments, LimitsCard, RecentActivity, SandboxBadge } from '../components/home/HomeCards'
+import { TARGET_CHAIN_ID }                          from '../config'
+
+const IS_TESTNET = TARGET_CHAIN_ID !== 5042
 
 export function Home() {
   return (
-    <div className="space-y-4 pb-2">
-      {/* App bar */}
-      <div className="flex items-center justify-between pt-1 pb-1">
-        <span
-          className="display text-xl font-bold"
-          style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}
-        >
-          {BRAND.name}
-        </span>
-        <SandboxBadge />
-      </div>
+    <div className="space-y-5 pb-2">
+      {/* Environment indicator — right-aligned, no page title below it */}
+      {IS_TESTNET && (
+        <div className="flex justify-end">
+          <SandboxBadge />
+        </div>
+      )}
 
-      {/* Balance hero — navy card with live USDC balance */}
       <BalanceHero />
 
-      {/* Quick-action circles */}
       <QuickActions />
 
-      {/* Protected bill payments */}
       <ProtectedPayments />
 
-      {/* KYC tier + spend limits */}
       <LimitsCard />
 
-      {/* Transaction history */}
       <RecentActivity />
     </div>
   )

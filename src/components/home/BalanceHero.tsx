@@ -1,5 +1,15 @@
 /**
- * BalanceHero — Navy hero card with live USDC balance, handle, address sheet with real QR.
+ * BalanceHero — the dominant financial surface on the Home screen.
+ *
+ * Layout:
+ *   Available balance  (Figtree label, 11px, muted)
+ *   $0.00              (Bricolage, 3.4rem, white — the single dominant object)
+ *   USDC               (Figtree, 14px, white/50%)
+ *   wallet address     (mono, 11px, white/38%)
+ *   [ Send ]  [ Request ]  — integrated inside the card
+ *
+ * Address sheet opens on tap of the address row.
+ * No KYC tier pill. No glows. One restrained depth accent at the top edge.
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -18,7 +28,7 @@ const usdcFact = getUsdc(TARGET_CHAIN_ID)
 const USDC_ADDRESS = (usdcFact?.address ?? '0x3600000000000000000000000000000000000000') as Address
 const USDC_DECIMALS = usdcFact?.decimals ?? 6
 
-// ─── QR Canvas ───────────────────────────────────────────────────────────────
+// ─── QR canvas ───────────────────────────────────────────────────────────────
 
 function QRCanvas({ value, size = 200 }: { value: string; size?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -30,7 +40,7 @@ function QRCanvas({ value, size = 200 }: { value: string; size?: number }) {
     void QRCodeLib.toCanvas(canvasRef.current, value, {
       width: size,
       margin: 2,
-      color: { dark: '#101934', light: '#FFFFFF' },
+      color: { dark: '#0E1030', light: '#FFFFFF' },
       errorCorrectionLevel: 'M',
     }).then(() => setReady(true))
   }, [value, size])
@@ -38,19 +48,11 @@ function QRCanvas({ value, size = 200 }: { value: string; size?: number }) {
   return (
     <div className="relative" style={{ width: size, height: size }}>
       {!ready && (
-        <div
-          className="absolute inset-0 rounded-2xl skeleton"
-          style={{ borderRadius: 16 }}
-        />
+        <div className="absolute inset-0 skeleton" style={{ borderRadius: 12 }} />
       )}
       <canvas
         ref={canvasRef}
-        style={{
-          borderRadius: 16,
-          opacity: ready ? 1 : 0,
-          transition: 'opacity 0.2s ease',
-          display: 'block',
-        }}
+        style={{ borderRadius: 12, opacity: ready ? 1 : 0, transition: 'opacity 0.18s', display: 'block' }}
       />
     </div>
   )
@@ -62,10 +64,10 @@ function AddressSheet({ address, onClose }: { address: Address; onClose: () => v
   const short = `${address.slice(0, 10)}…${address.slice(-8)}`
   const [copied, setCopied] = useState(false)
 
-  const copy = (text: string, setter: (v: boolean) => void) => {
-    void navigator.clipboard.writeText(text).then(() => {
-      setter(true)
-      setTimeout(() => setter(false), 2200)
+  const copy = () => {
+    void navigator.clipboard.writeText(address).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
     })
   }
 
@@ -75,62 +77,66 @@ function AddressSheet({ address, onClose }: { address: Address; onClose: () => v
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
+      transition={{ duration: 0.16 }}
       onClick={onClose}
     >
-      <div className="absolute inset-0" style={{ background: 'rgba(8,15,34,0.65)', backdropFilter: 'blur(8px)' }} />
+      <div className="absolute inset-0" style={{ background: 'rgba(8,10,24,0.60)', backdropFilter: 'blur(6px)' }} />
 
       <motion.div
-        className="relative w-full max-w-md rounded-t-3xl pb-safe"
+        className="relative w-full max-w-md rounded-t-2xl"
         style={{
-          background: '#fff',
-          boxShadow: '0 -12px 48px rgba(16,25,52,0.22)',
+          background: 'var(--surface)',
+          boxShadow: '0 -8px 40px rgba(14,16,48,0.18)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 20px), 20px)',
         }}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 36 }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Gold accent strip */}
-        <div className="absolute top-0 inset-x-0 h-0.5 rounded-t-3xl" style={{ background: 'var(--gold)' }} />
+        {/* Saffron accent strip */}
+        <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-2xl" style={{ background: 'var(--saffron)' }} />
 
-        {/* Close + drag */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <div className="mx-auto w-9 h-1 rounded-full" style={{ background: 'var(--border-strong)' }} />
+        {/* Drag handle + close */}
+        <div className="flex items-center justify-center pt-4 pb-2">
+          <div className="h-[3px] w-8 rounded-full" style={{ background: 'var(--border-mid)' }} />
         </div>
         <button
           onClick={onClose}
-          className="absolute top-3.5 right-4 flex size-8 items-center justify-center rounded-full transition-colors hover:bg-slate-100 active:scale-90"
+          className="absolute top-3 right-4 flex size-8 items-center justify-center rounded-full transition-colors hover:bg-slate-100 active:scale-90"
           aria-label="Close"
         >
           <X className="size-4" style={{ color: 'var(--muted)' }} />
         </button>
 
         <div className="px-6 pt-1 pb-2 text-center">
-          <p className="text-base font-bold mb-0.5" style={{ color: 'var(--ink)' }}>Your address</p>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>Receive USDC on {BRAND.networkName}</p>
+          <p className="text-[15px] font-semibold mb-0.5" style={{ color: 'var(--ink)', fontFamily: '"Figtree",sans-serif' }}>
+            Your address
+          </p>
+          <p className="text-xs" style={{ color: 'var(--muted)', fontFamily: '"Figtree",sans-serif' }}>
+            Receive USDC on {BRAND.networkName}
+          </p>
         </div>
 
         {/* QR */}
         <div className="flex justify-center px-6 py-4">
           <div
-            className="rounded-3xl p-3"
-            style={{ background: '#fff', boxShadow: '0 4px 24px rgba(16,25,52,0.10)', border: '1px solid var(--border)' }}
+            className="rounded-2xl p-3"
+            style={{ background: '#fff', boxShadow: '0 2px 16px rgba(14,16,48,0.08)', border: '1px solid var(--border)' }}
           >
-            <QRCanvas value={address} size={200} />
+            <QRCanvas value={address} size={188} />
           </div>
         </div>
 
-        {/* Copy address */}
-        <div className="px-6 space-y-2.5">
+        {/* Copy row */}
+        <div className="px-5">
           <button
-            onClick={() => copy(address, setCopied)}
-            className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all active:scale-[0.98]"
-            style={{ background: 'var(--surface-muted)', color: 'var(--ink)', border: '1px solid var(--border)' }}
+            onClick={copy}
+            className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm transition-all active:scale-[0.98]"
+            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
           >
-            <span className="mono text-xs truncate">{short}</span>
+            <span className="mono text-[13px] truncate" style={{ color: 'var(--ink)' }}>{short}</span>
             <AnimatePresence mode="wait" initial={false}>
               {copied
                 ? <motion.span key="c" initial={{ scale: 0.6 }} animate={{ scale: 1 }} exit={{ scale: 0.6 }}>
@@ -142,8 +148,7 @@ function AddressSheet({ address, onClose }: { address: Address; onClose: () => v
               }
             </AnimatePresence>
           </button>
-
-          <p className="text-center text-[11px] pt-1" style={{ color: 'var(--subtle)' }}>
+          <p className="text-center text-[11px] mt-2.5" style={{ color: 'var(--subtle)', fontFamily: '"Figtree",sans-serif' }}>
             {BRAND.networkName} · USDC only
           </p>
         </div>
@@ -167,139 +172,180 @@ export function BalanceHero() {
     chainId: TARGET_CHAIN_ID,
   })
 
+  // Split balance into dollars and cents for typographic treatment
   const [whole, frac] = (() => {
     if (balanceRaw === undefined) return [null, null]
     const n = parseFloat(formatUnits(balanceRaw, USDC_DECIMALS))
-    const parts = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.')
+    const s = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    const parts = s.split('.')
     return [parts[0], parts[1] ?? '00']
   })()
 
-  const shortAddress = address ? `${address.slice(0, 8)}…${address.slice(-6)}` : ''
+  const shortAddress = address
+    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    : ''
 
   if (!isConnected) return null
 
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1.0] }}
-        className="relative overflow-hidden rounded-3xl"
+        transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1.0] }}
+        className="relative overflow-hidden rounded-2xl"
         style={{
-          background: 'linear-gradient(148deg, #16224A 0%, #0D1838 55%, #0A1220 100%)',
-          boxShadow: '0 8px 36px rgba(8,15,34,0.38)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: 'linear-gradient(155deg, #1B1F4B 0%, #0E1030 60%, #090B20 100%)',
+          boxShadow: '0 6px 28px rgba(8,10,32,0.32)',
+          border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        {/* Gold radial glow — top right */}
+        {/* Subtle top-edge saffron reflection */}
         <div
           aria-hidden
-          className="pointer-events-none absolute"
-          style={{
-            top: -50, right: -50,
-            width: 240, height: 240,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(243,181,28,0.18) 0%, transparent 65%)',
-            filter: 'blur(24px)',
-          }}
-        />
-        {/* Teal glow — bottom left */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute"
-          style={{
-            bottom: -30, left: -30,
-            width: 160, height: 160,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(24,165,139,0.12) 0%, transparent 70%)',
-            filter: 'blur(20px)',
-          }}
+          className="pointer-events-none absolute top-0 inset-x-0 h-[1px]"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(242,169,0,0.40), transparent)' }}
         />
 
-        <div className="relative z-10 p-5">
-          {/* Top row: address chip + tier */}
-          <div className="flex items-center justify-between mb-5">
-            <button
-              onClick={() => setShowAddress(true)}
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all active:scale-95 hover:bg-white/10"
-              style={{
-                background: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.55)',
-                border: '1px solid rgba(255,255,255,0.10)',
-              }}
-            >
-              <span className="mono">{shortAddress}</span>
-              <QrCode className="size-3" />
-            </button>
-            {/* Tier pill removed — payments are permissionless at launch */}
-          </div>
+        <div className="relative z-10 px-5 pt-5 pb-5">
+          {/* Label */}
+          <p
+            className="mb-3"
+            style={{
+              fontFamily: '"Figtree",sans-serif',
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.36)',
+            }}
+          >
+            Available balance
+          </p>
 
-          {/* Balance */}
-          <div className="mb-2">
-            <p
-              className="text-[11px] font-semibold uppercase mb-2"
-              style={{ color: 'rgba(255,255,255,0.38)', letterSpacing: '0.10em' }}
+          {/* Balance figure — dominant object, live region for screen readers */}
+          {isLoading || whole === null ? (
+            <div className="flex items-end gap-1 mb-4" aria-hidden>
+              <Skeleton className="h-14 w-44 rounded-lg" style={{ background: 'rgba(255,255,255,0.08)' }} />
+            </div>
+          ) : (
+            <motion.div
+              key={whole + frac}
+              initial={{ opacity: 0.75 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: [0.25,0.1,0.25,1] }}
+              className="flex items-start mb-3"
+              aria-live="polite"
+              aria-label={`Available balance: ${whole}.${frac ?? '00'} USDC`}
             >
-              Available balance
-            </p>
-            {isLoading || whole === null ? (
-              <div className="flex items-end gap-1 mb-1">
-                <Skeleton className="h-12 w-40 rounded-xl" style={{ background: 'rgba(255,255,255,0.08)' }} />
-              </div>
-            ) : (
-              <motion.div
-                key={whole + frac}
-                initial={{ opacity: 0.6 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="flex items-baseline gap-1.5"
+              {/* Dollar prefix */}
+              <span
+                aria-hidden
+                style={{
+                  fontFamily: '"Bricolage Grotesque",sans-serif',
+                  fontWeight: 600,
+                  fontSize: '1.5rem',
+                  lineHeight: 1,
+                  letterSpacing: '-0.02em',
+                  color: 'rgba(255,255,255,0.50)',
+                  marginTop: '0.55rem',
+                  marginRight: '0.1rem',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
               >
-                <span
-                  className="display font-bold tabular-nums"
-                  style={{ color: '#fff', fontSize: '3.2rem', lineHeight: 1, letterSpacing: '-0.04em' }}
-                >
-                  {whole}
-                </span>
-                <span
-                  className="display font-bold tabular-nums"
-                  style={{ color: 'rgba(255,255,255,0.48)', fontSize: '1.7rem', lineHeight: 1, letterSpacing: '-0.03em' }}
-                >
-                  .{frac}
-                </span>
-                <span className="text-sm font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                  USDC
-                </span>
-              </motion.div>
-            )}
-          </div>
+                $
+              </span>
+              {/* Integer part */}
+              <span
+                style={{
+                  fontFamily: '"Bricolage Grotesque",sans-serif',
+                  fontWeight: 700,
+                  fontSize: '3.4rem',
+                  lineHeight: 1,
+                  letterSpacing: '-0.04em',
+                  color: '#FFFFFF',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {whole}
+              </span>
+              {/* Decimal part */}
+              <span
+                style={{
+                  fontFamily: '"Bricolage Grotesque",sans-serif',
+                  fontWeight: 600,
+                  fontSize: '1.6rem',
+                  lineHeight: 1,
+                  letterSpacing: '-0.03em',
+                  color: 'rgba(255,255,255,0.40)',
+                  marginTop: '0.65rem',
+                  marginLeft: '0.08rem',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                .{frac}
+              </span>
+              {/* Currency label */}
+              <span
+                style={{
+                  fontFamily: '"Figtree",sans-serif',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  color: 'rgba(255,255,255,0.32)',
+                  marginTop: 'auto',
+                  marginLeft: '0.4rem',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                USDC
+              </span>
+            </motion.div>
+          )}
 
-          {/* Divider */}
-          <div className="h-px mb-4" style={{ background: 'rgba(255,255,255,0.08)' }} />
+          {/* Wallet address — tappable to open sheet */}
+          <button
+            onClick={() => setShowAddress(true)}
+            className="flex items-center gap-1.5 mb-5 transition-opacity hover:opacity-70 active:opacity-50"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            aria-label="View wallet address"
+          >
+            <span
+              className="mono"
+              style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', letterSpacing: '0.04em' }}
+            >
+              {shortAddress}
+            </span>
+            <QrCode className="size-3" style={{ color: 'rgba(255,255,255,0.25)' }} />
+          </button>
 
-          {/* Quick actions */}
+          {/* Hairline */}
+          <div className="mb-4" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+
+          {/* Send / Request — integrated into card */}
           <div className="grid grid-cols-2 gap-2.5">
             <Link
               to="/send"
-              className="flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.97] hover:brightness-110"
+              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-[13px] font-semibold transition-all active:scale-[0.97]"
               style={{
-                background: '#F3B51C',
-                color: '#0A0F1E',
-                boxShadow: '0 2px 12px rgba(243,181,28,0.44)',
+                background: 'var(--saffron)',
+                color: '#0A0B1E',
+                fontFamily: '"Figtree",sans-serif',
               }}
             >
-              <ArrowUpRight className="size-4" strokeWidth={2.5} />
+              <ArrowUpRight className="size-4" strokeWidth={2.2} />
               Send
             </Link>
             <Link
               to="/request"
-              className="flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.97]"
+              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-[13px] font-semibold transition-all active:scale-[0.97]"
               style={{
-                background: 'rgba(255,255,255,0.10)',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.14)',
+                background: 'rgba(255,255,255,0.09)',
+                color: 'rgba(255,255,255,0.85)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                fontFamily: '"Figtree",sans-serif',
               }}
             >
-              <ArrowDownLeft className="size-4" strokeWidth={2.5} />
+              <ArrowDownLeft className="size-4" strokeWidth={2.2} />
               Request
             </Link>
           </div>
@@ -308,10 +354,7 @@ export function BalanceHero() {
 
       <AnimatePresence>
         {showAddress && address && (
-          <AddressSheet
-            address={address}
-            onClose={() => setShowAddress(false)}
-          />
+          <AddressSheet address={address} onClose={() => setShowAddress(false)} />
         )}
       </AnimatePresence>
     </>

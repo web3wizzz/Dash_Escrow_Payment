@@ -1,371 +1,468 @@
 /**
- * Payments — Web3-native payments hub.
+ * Payments — financial services hub.
  *
- * Four categories:
- *   Invoices    — requestPay + share link (LIVE via PayRouter.requestPay)
- *   Escrow      — createOrder escrow (LIVE via PayRouter.createOrder, 30-min timeout)
- *   Schedules   — payroll, vesting, allowances, streams (LIVE via ScheduledPayouts)
- *   Subscriptions — coming soon (no on-chain automation exists yet)
+ * Organized into groups:
+ *   Core        — Send, Request, Invoices, Escrow
+ *   Automation  — Scheduled Payouts, Payroll / Vesting
+ *   Future      — Subscriptions (coming soon)
  *
- * No fake balances, histories, or merchants are shown.
+ * Each item is a compact list row with icon, title, description, status, and chevron.
+ * No large cards. Status badges are small and quiet.
  */
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  FileText, ShieldCheck, CalendarClock, RefreshCw,
-  ArrowRight, AlertCircle, ChevronLeft, Info,
+  ArrowUpRight, ArrowDownLeft, FileText, ShieldCheck,
+  CalendarClock, Users, RefreshCw, ChevronRight,
+  ChevronLeft,
 } from 'lucide-react'
-import { PageHeader, Badge, stagger } from '../components/ui'
 import { InvoicePanel } from '../components/payments/InvoicePanel'
 import { EscrowPanel } from '../components/payments/EscrowPanel'
 
-type Category = 'hub' | 'invoices' | 'escrow' | 'schedules' | 'subscriptions'
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// ─── Category definitions ──────────────────────────────────────────────────
+type PanelId = 'hub' | 'invoices' | 'escrow' | 'schedules' | 'subscriptions'
 
-const categories = [
+interface ServiceItem {
+  id: PanelId
+  icon: React.ElementType
+  iconBg: string
+  iconFg: string
+  label: string
+  description: string
+  status: 'live' | 'coming-soon'
+  isLink?: string  // navigate directly rather than open panel
+}
+
+// ─── Service definitions ──────────────────────────────────────────────────────
+
+const CORE: ServiceItem[] = [
   {
-    id: 'invoices' as Category,
+    id: 'invoices',
     icon: FileText,
+    iconBg: 'rgba(26,127,78,0.10)',
+    iconFg: 'var(--success)',
     label: 'Invoices',
-    description: 'Request USDC payments with a shareable link or QR code.',
-    status: 'live' as const,
-    statusLabel: 'Live',
-    accentColor: '#18A58B',
-    accentBg: 'rgba(24,165,139,0.10)',
+    description: 'Request USDC with a shareable link or QR code.',
+    status: 'live',
   },
   {
-    id: 'escrow' as Category,
+    id: 'escrow',
     icon: ShieldCheck,
+    iconBg: 'rgba(242,169,0,0.11)',
+    iconFg: '#8A6200',
     label: 'Escrow',
-    description: 'Hold USDC in escrow until a service is delivered. Auto-refund after 30 minutes.',
-    status: 'live' as const,
-    statusLabel: 'Live',
-    accentColor: '#F3B51C',
-    accentBg: 'rgba(243,181,28,0.12)',
-  },
-  {
-    id: 'schedules' as Category,
-    icon: CalendarClock,
-    label: 'Scheduled Payouts',
-    description: 'Payroll, vesting schedules, allowances, and per-second salary streams.',
-    status: 'live' as const,
-    statusLabel: 'Live',
-    accentColor: '#101934',
-    accentBg: 'rgba(16,25,52,0.08)',
-  },
-  {
-    id: 'subscriptions' as Category,
-    icon: RefreshCw,
-    label: 'Subscriptions',
-    description: 'Recurring USDC billing agreements with on-chain authorization.',
-    status: 'planned' as const,
-    statusLabel: 'Coming soon',
-    accentColor: '#6675A0',
-    accentBg: 'rgba(102,117,160,0.10)',
+    description: 'Hold funds until a service is confirmed. Auto-refund in 30 min.',
+    status: 'live',
   },
 ]
 
-// ─── Hub card ──────────────────────────────────────────────────────────────
+const CORE_QUICK: ServiceItem[] = [
+  {
+    id: 'hub',
+    icon: ArrowUpRight,
+    iconBg: 'rgba(14,16,48,0.07)',
+    iconFg: 'var(--ink)',
+    label: 'Send',
+    description: 'Send USDC to any address.',
+    status: 'live',
+    isLink: '/send',
+  },
+  {
+    id: 'hub',
+    icon: ArrowDownLeft,
+    iconBg: 'rgba(14,16,48,0.07)',
+    iconFg: 'var(--ink)',
+    label: 'Request',
+    description: 'Create a payment request.',
+    status: 'live',
+    isLink: '/request',
+  },
+]
 
-function CategoryCard({
-  id: _id, icon: Icon, label, description, status, statusLabel, accentColor, accentBg,
-  delay, onClick,
-}: typeof categories[0] & { delay: number; onClick: () => void }) {
-  const isLive = status === 'live'
+const AUTOMATION: ServiceItem[] = [
+  {
+    id: 'schedules',
+    icon: CalendarClock,
+    iconBg: 'rgba(27,31,75,0.09)',
+    iconFg: 'var(--indigo)',
+    label: 'Scheduled Payouts',
+    description: 'Pay later, allowances, cliff vesting, streaming.',
+    status: 'live',
+    isLink: '/schedules',
+  },
+  {
+    id: 'schedules',
+    icon: Users,
+    iconBg: 'rgba(27,31,75,0.09)',
+    iconFg: 'var(--indigo)',
+    label: 'Payroll',
+    description: 'Multi-recipient periodic USDC disbursements.',
+    status: 'live',
+    isLink: '/schedules/new',
+  },
+]
+
+const FUTURE: ServiceItem[] = [
+  {
+    id: 'subscriptions',
+    icon: RefreshCw,
+    iconBg: 'rgba(105,114,143,0.09)',
+    iconFg: 'var(--muted)',
+    label: 'Subscriptions',
+    description: 'Recurring authorized USDC billing.',
+    status: 'coming-soon',
+  },
+]
+
+// ─── Row ──────────────────────────────────────────────────────────────────────
+
+function ServiceRow({
+  item,
+  onPress,
+}: {
+  item: ServiceItem
+  onPress: (id: PanelId) => void
+}) {
+  const isLive = item.status === 'live'
+
+  const inner = (
+    <div className="flex items-center gap-3 px-4 py-3.5">
+      <span
+        className="flex items-center justify-center rounded-xl flex-shrink-0"
+        style={{ width: 38, height: 38, background: item.iconBg }}
+      >
+        <item.icon className="size-[17px]" style={{ color: item.iconFg }} strokeWidth={1.8} />
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span
+            style={{
+              fontFamily: '"Figtree",sans-serif',
+              fontSize: 14,
+              fontWeight: 600,
+              color: isLive ? 'var(--ink)' : 'var(--muted)',
+            }}
+          >
+            {item.label}
+          </span>
+          {item.status === 'coming-soon' && (
+            <span
+              style={{
+                fontFamily: '"Figtree",sans-serif',
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--muted)',
+                background: 'var(--surface-muted)',
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                padding: '1px 5px',
+              }}
+            >
+              Soon
+            </span>
+          )}
+        </div>
+        <p
+          style={{
+            fontFamily: '"Figtree",sans-serif',
+            fontSize: 12,
+            color: 'var(--muted)',
+            lineHeight: 1.4,
+          }}
+        >
+          {item.description}
+        </p>
+      </div>
+
+      <ChevronRight
+        className="size-4 flex-shrink-0"
+        style={{ color: isLive ? 'var(--subtle)' : 'var(--border-mid)' }}
+      />
+    </div>
+  )
+
+  if (item.isLink) {
+    return (
+      <Link
+        to={item.isLink}
+        className="block transition-colors"
+        style={{ '--hover-bg': 'var(--surface-muted)' } as React.CSSProperties}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
+        onMouseLeave={e => (e.currentTarget.style.background = '')}
+      >
+        {inner}
+      </Link>
+    )
+  }
 
   return (
-    <motion.button
-      onClick={onClick}
-      className="w-full text-left rounded-3xl overflow-hidden transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3B51C]"
-      style={{
-        background: 'var(--surface-elevated)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 2px 12px rgba(16,25,52,0.05)',
-      }}
-      {...stagger(delay)}
-      whileHover={{ y: -1, boxShadow: '0 6px 24px rgba(16,25,52,0.10)' }}
-      whileTap={{ scale: 0.98 }}
+    <button
+      onClick={() => isLive && onPress(item.id)}
+      disabled={!isLive}
+      className="w-full text-left block transition-colors disabled:cursor-default"
+      onMouseEnter={e => isLive && (e.currentTarget.style.background = 'var(--surface-muted)')}
+      onMouseLeave={e => (e.currentTarget.style.background = '')}
     >
-      <div className="p-4 flex items-start gap-3.5">
-        {/* Icon */}
-        <span
-          className="flex size-11 items-center justify-center rounded-2xl flex-shrink-0 mt-0.5"
-          style={{ background: accentBg }}
-        >
-          <Icon className="size-5" style={{ color: accentColor }} strokeWidth={1.8} />
-        </span>
-
-        {/* Text */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{label}</p>
-            <Badge variant={isLive ? 'success' : 'muted'} className="text-[9px]">
-              {statusLabel}
-            </Badge>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            {description}
-          </p>
-        </div>
-
-        {/* Arrow */}
-        <ArrowRight
-          className="size-4 flex-shrink-0 mt-1"
-          style={{ color: isLive ? 'var(--muted)' : 'var(--subtle)' }}
-        />
-      </div>
-    </motion.button>
+      {inner}
+    </button>
   )
 }
 
-// ─── Subscriptions placeholder ─────────────────────────────────────────────
+// ─── Group card ───────────────────────────────────────────────────────────────
+
+function ServiceGroup({
+  heading,
+  items,
+  delay,
+  onPress,
+}: {
+  heading: string
+  items: ServiceItem[]
+  delay: number
+  onPress: (id: PanelId) => void
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, delay, ease: [0.25, 0.1, 0.25, 1.0] }}
+    >
+      <p
+        className="mb-2 px-1"
+        style={{
+          fontFamily: '"Figtree",sans-serif',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--muted)',
+        }}
+      >
+        {heading}
+      </p>
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 1px 4px rgba(14,16,48,0.04)',
+        }}
+      >
+        {items.map((item, i) => (
+          <div key={`${item.label}-${i}`}>
+            {i > 0 && <div style={{ height: 1, background: 'var(--border)', marginLeft: 54 }} />}
+            <ServiceRow item={item} onPress={onPress} />
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Back button ─────────────────────────────────────────────────────────────
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      onClick={onBack}
+      className="flex items-center gap-1 text-[14px] font-semibold min-h-[44px] -ml-1 mb-3 transition-opacity hover:opacity-70"
+      style={{ color: 'var(--muted)', fontFamily: '"Figtree",sans-serif' }}
+    >
+      <ChevronLeft className="size-4" />
+      Payments
+    </button>
+  )
+}
+
+// ─── Subscriptions placeholder ────────────────────────────────────────────────
 
 function SubscriptionsPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm font-semibold min-h-[44px] -ml-1 transition-opacity hover:opacity-70"
-          style={{ color: 'var(--muted)' }}
+      <BackButton onBack={onBack} />
+      <div>
+        <h1
+          style={{
+            fontFamily: '"Bricolage Grotesque",sans-serif',
+            fontWeight: 700,
+            fontSize: '1.5rem',
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+            marginBottom: 4,
+          }}
         >
-          <ChevronLeft className="size-4" /> Payments
-        </button>
+          Subscriptions
+        </h1>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          Recurring on-chain billing — coming soon
+        </p>
       </div>
 
-      <PageHeader
-        title="Subscriptions"
-        subtitle="Recurring on-chain billing"
-        right={<Badge variant="muted">Coming soon</Badge>}
-      />
-
-      {/* Why it doesn't exist yet */}
       <div
-        className="rounded-3xl p-5 space-y-4"
-        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+        className="rounded-xl p-4 space-y-3"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <div className="flex items-start gap-3">
-          <span
-            className="flex size-9 items-center justify-center rounded-2xl flex-shrink-0"
-            style={{ background: 'rgba(102,117,160,0.12)' }}
-          >
-            <Info className="size-4" style={{ color: 'var(--muted)' }} />
-          </span>
-          <div>
-            <p className="text-sm font-bold mb-1" style={{ color: 'var(--ink)' }}>
-              Why subscriptions need a new design
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-              True recurring payments require a subscriber to authorize a keeper or contract to
-              pull USDC on a schedule — without needing a manual signature each time. The current
-              Permit2 flow requires one signature per transfer, which is correct for single
-              payments but not for automated recurring billing.
-            </p>
-          </div>
-        </div>
-
-        <div className="h-px" style={{ background: 'var(--border)' }} />
-
-        <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--subtle)', letterSpacing: '0.09em' }}>
-            What's needed
-          </p>
-          {[
-            { label: 'Subscription registry contract', detail: 'Stores authorized billing relationships on-chain.' },
-            { label: 'Keeper / executor', detail: 'Off-chain or on-chain agent that triggers pulls when due.' },
-            { label: 'Cancellation mechanism', detail: 'Subscriber can revoke authorization at any time.' },
-            { label: 'Funding check', detail: 'Graceful handling of insufficient USDC at billing time.' },
-          ].map(({ label, detail }) => (
-            <div key={label} className="flex items-start gap-2.5">
-              <AlertCircle className="size-3.5 mt-0.5 flex-shrink-0" style={{ color: 'var(--subtle)' }} />
-              <div>
-                <p className="text-xs font-semibold" style={{ color: 'var(--ink)' }}>{label}</p>
-                <p className="text-[11px]" style={{ color: 'var(--muted)' }}>{detail}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="h-px" style={{ background: 'var(--border)' }} />
-
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+          Why it doesn't exist yet
+        </p>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
+          True recurring payments require a subscriber to authorize a keeper to pull USDC on a schedule
+          — without a manual signature each time. The current Permit2 flow is correct for single
+          payments but not for automated recurring billing. A subscription registry contract and
+          off-chain keeper are required.
+        </p>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
           In the meantime, use{' '}
-          <Link to="/schedules" className="font-semibold" style={{ color: 'var(--navy)' }}>
-            Scheduled Payouts
-          </Link>
-          {' '}for fixed allowances and payroll, or{' '}
-          <Link to="/request" className="font-semibold" style={{ color: 'var(--navy)' }}>
-            Invoices
-          </Link>
-          {' '}to request each payment manually.
+          <Link to="/schedules" className="font-semibold" style={{ color: 'var(--ink)' }}>Scheduled Payouts</Link>
+          {' '}for fixed allowances and payroll.
         </p>
       </div>
     </div>
   )
 }
 
-// ─── Schedules redirect panel ──────────────────────────────────────────────
+// ─── Schedules redirect panel ─────────────────────────────────────────────────
 
 function SchedulesPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1 text-sm font-semibold min-h-[44px] -ml-1 transition-opacity hover:opacity-70"
-        style={{ color: 'var(--muted)' }}
-      >
-        <ChevronLeft className="size-4" /> Payments
-      </button>
+      <BackButton onBack={onBack} />
+      <div>
+        <h1
+          style={{
+            fontFamily: '"Bricolage Grotesque",sans-serif',
+            fontWeight: 700,
+            fontSize: '1.5rem',
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+            marginBottom: 4,
+          }}
+        >
+          Scheduled Payouts
+        </h1>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          Automated USDC disbursements on-chain
+        </p>
+      </div>
 
-      <PageHeader
-        title="Scheduled Payouts"
-        subtitle="Automated USDC disbursements"
-        right={<Badge variant="success">Live</Badge>}
-      />
-
-      {/* Feature grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2">
         {[
-          { label: 'Pay Later', desc: 'Lock USDC to unlock at a future date.' },
-          { label: 'Allowance', desc: 'Recurring periodic USDC releases.' },
-          { label: 'Vesting', desc: 'Linear vesting with cliff date.' },
-          { label: 'Payroll', desc: 'Multi-recipient periodic disbursements.' },
-          { label: 'Streaming', desc: 'Per-second real-time USDC stream.' },
-          { label: 'Claim', desc: 'Recipient claims at any time.' },
+          { label: 'Pay Later',  desc: 'Lock and release at a future date.' },
+          { label: 'Allowance',  desc: 'Recurring periodic releases.' },
+          { label: 'Vesting',    desc: 'Linear vesting with cliff.' },
+          { label: 'Payroll',    desc: 'Multi-recipient periodic.' },
+          { label: 'Streaming',  desc: 'Per-second real-time stream.' },
+          { label: 'Claim',      desc: 'Recipient claims any time.' },
         ].map(({ label, desc }) => (
           <div
             key={label}
-            className="rounded-2xl p-3.5"
-            style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+            className="rounded-xl p-3"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
-            <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--ink)' }}>{label}</p>
-            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--muted)' }}>{desc}</p>
+            <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+              {label}
+            </p>
+            <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+              {desc}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         <Link
           to="/schedules/new"
-          className="flex items-center justify-center gap-2 w-full rounded-2xl py-4 text-sm font-bold transition-all active:scale-[0.98]"
-          style={{
-            background: '#F3B51C',
-            color: '#0A0F1E',
-            boxShadow: '0 2px 12px rgba(243,181,28,0.35)',
-          }}
+          className="flex items-center justify-center gap-1.5 w-full rounded-xl py-3.5 text-[14px] font-semibold transition-all active:scale-[0.98]"
+          style={{ background: 'var(--saffron)', color: '#0A0B1E', fontFamily: '"Figtree",sans-serif' }}
         >
-          <CalendarClock className="size-4" strokeWidth={2.2} />
+          <CalendarClock className="size-4" strokeWidth={2} />
           Create a schedule
         </Link>
         <Link
           to="/schedules"
-          className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.98]"
-          style={{
-            background: 'var(--surface-elevated)',
-            color: 'var(--navy)',
-            border: '1px solid var(--border)',
-          }}
+          className="flex items-center justify-center gap-1.5 w-full rounded-xl py-3.5 text-[14px] font-semibold transition-all active:scale-[0.98]"
+          style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)', fontFamily: '"Figtree",sans-serif' }}
         >
           View all schedules
-          <ArrowRight className="size-4" />
         </Link>
       </div>
-
-      <p className="text-[11px] text-center" style={{ color: 'var(--subtle)' }}>
-        All schedules are non-custodial. Funds are deposited once and released by the contract.
-      </p>
     </div>
   )
 }
 
-// ─── Main component ────────────────────────────────────────────────────────
+// ─── Hub ──────────────────────────────────────────────────────────────────────
+
+function PaymentsHub({ onPress }: { onPress: (id: PanelId) => void }) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1
+          style={{
+            fontFamily: '"Bricolage Grotesque",sans-serif',
+            fontWeight: 700,
+            fontSize: '1.5rem',
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+            marginBottom: 3,
+          }}
+        >
+          Payments
+        </h1>
+        <p style={{ fontFamily: '"Figtree",sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          Non-custodial USDC flows — all on Arc
+        </p>
+      </div>
+
+      <ServiceGroup heading="Core" items={[...CORE_QUICK, ...CORE]} delay={0.04} onPress={onPress} />
+      <ServiceGroup heading="Automation" items={AUTOMATION} delay={0.10} onPress={onPress} />
+      <ServiceGroup heading="Future" items={FUTURE} delay={0.16} onPress={onPress} />
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function Payments() {
-  const [category, setCategory] = useState<Category>('hub')
+  const [panel, setPanel] = useState<PanelId>('hub')
 
-  const slideVariants = {
-    initial: { opacity: 0, x: 24 },
+  const transition = { duration: 0.18, ease: [0.25, 0.1, 0.25, 1.0] as [number,number,number,number] }
+  const slide = {
+    initial: { opacity: 0, x: 18 },
     animate: { opacity: 1, x: 0 },
-    exit:    { opacity: 0, x: -20 },
+    exit:    { opacity: 0, x: -14 },
   }
-  const transition = { duration: 0.20, ease: [0.25, 0.1, 0.25, 1.0] as [number,number,number,number] }
 
   return (
     <AnimatePresence mode="wait">
-      {category === 'hub' && (
-        <motion.div key="hub" {...slideVariants} transition={transition} className="space-y-4">
-          <PageHeader title="Payments" subtitle="Invoices, escrow, schedules & more" />
-
-          <div className="space-y-2.5">
-            {categories.map((cat, i) => (
-              <CategoryCard
-                key={cat.id}
-                {...cat}
-                delay={i * 0.06}
-                onClick={() => setCategory(cat.id)}
-              />
-            ))}
-          </div>
-
-          {/* Quick links strip */}
-          <div
-            className="rounded-2xl px-4 py-3 flex items-center justify-between"
-            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}
-          >
-            <p className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>Quick actions</p>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/send"
-                className="text-xs font-bold transition-opacity hover:opacity-70 min-h-[44px] flex items-center"
-                style={{ color: 'var(--navy)' }}
-              >
-                Send
-              </Link>
-              <span style={{ color: 'var(--border-mid)' }}>·</span>
-              <Link
-                to="/request"
-                className="text-xs font-bold transition-opacity hover:opacity-70 min-h-[44px] flex items-center"
-                style={{ color: 'var(--navy)' }}
-              >
-                Request
-              </Link>
-              <span style={{ color: 'var(--border-mid)' }}>·</span>
-              <Link
-                to="/scan"
-                className="text-xs font-bold transition-opacity hover:opacity-70 min-h-[44px] flex items-center"
-                style={{ color: 'var(--navy)' }}
-              >
-                Scan
-              </Link>
-            </div>
-          </div>
+      {panel === 'hub' && (
+        <motion.div key="hub" {...slide} transition={transition}>
+          <PaymentsHub onPress={setPanel} />
         </motion.div>
       )}
-
-      {category === 'invoices' && (
-        <motion.div key="invoices" {...slideVariants} transition={transition}>
-          <InvoicePanel onBack={() => setCategory('hub')} />
+      {panel === 'invoices' && (
+        <motion.div key="invoices" {...slide} transition={transition}>
+          <InvoicePanel onBack={() => setPanel('hub')} />
         </motion.div>
       )}
-
-      {category === 'escrow' && (
-        <motion.div key="escrow" {...slideVariants} transition={transition}>
-          <EscrowPanel onBack={() => setCategory('hub')} />
+      {panel === 'escrow' && (
+        <motion.div key="escrow" {...slide} transition={transition}>
+          <EscrowPanel onBack={() => setPanel('hub')} />
         </motion.div>
       )}
-
-      {category === 'schedules' && (
-        <motion.div key="schedules" {...slideVariants} transition={transition}>
-          <SchedulesPanel onBack={() => setCategory('hub')} />
+      {panel === 'schedules' && (
+        <motion.div key="schedules" {...slide} transition={transition}>
+          <SchedulesPanel onBack={() => setPanel('hub')} />
         </motion.div>
       )}
-
-      {category === 'subscriptions' && (
-        <motion.div key="subscriptions" {...slideVariants} transition={transition}>
-          <SubscriptionsPanel onBack={() => setCategory('hub')} />
+      {panel === 'subscriptions' && (
+        <motion.div key="subscriptions" {...slide} transition={transition}>
+          <SubscriptionsPanel onBack={() => setPanel('hub')} />
         </motion.div>
       )}
     </AnimatePresence>

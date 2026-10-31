@@ -172,7 +172,7 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
           <button
             onClick={() => setPayrollRows(r => [...r, { address: '', amount: '' }])}
             className="flex items-center gap-1.5 text-xs font-bold min-h-[44px] px-3 rounded-2xl transition-all active:scale-95"
-            style={{ color: '#9A6E00', background: 'var(--gold-muted)', border: '1px solid rgba(243,181,28,0.25)' }}
+            style={{ color: '#9A6E00', background: 'var(--gold-muted)', border: '1px solid rgba(242,169,0,0.25)' }}
           >
             <Plus className="size-3.5" /> Add recipient
           </button>
@@ -225,7 +225,7 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
       {/* Revocable toggle */}
       <div
         className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
-        style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <Info className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--muted)' }} />
         <div className="flex-1 min-w-0">
@@ -257,9 +257,9 @@ export function ScheduleForm({ onSuccess }: ScheduleFormProps) {
         disabled={!ready || isPending || isConfirming}
         className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
         style={{
-          background: ready && !isPending && !isConfirming ? '#F3B51C' : 'var(--surface-muted)',
+          background: ready && !isPending && !isConfirming ? 'var(--saffron)' : 'var(--surface-muted)',
           color: ready && !isPending && !isConfirming ? '#0A0F1E' : 'var(--muted)',
-          boxShadow: ready && !isPending && !isConfirming ? '0 2px 12px rgba(243,181,28,0.35)' : 'none',
+          boxShadow: ready && !isPending && !isConfirming ? '0 2px 12px rgba(242,169,0,0.35)' : 'none',
           minHeight: 54,
           transition: 'all 0.2s ease',
         }}

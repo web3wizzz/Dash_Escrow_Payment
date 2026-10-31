@@ -6,12 +6,12 @@ Built with [Arc Studio](https://studio.arc.io).
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Bricolage Grotesque + Figtree (Google Fonts)
 - **Backend**: Bun HTTP server (port 3001) serving the bill provider catalog
 - **Onchain**: wagmi v2, viem, ConnectKit
-- **Payments**: Permit2 SignatureTransfer (exact amount, single-use nonce), USDC on Arc mainnet
+- **Payments**: Permit2 SignatureTransfer (exact amount, single-use nonce), USDC on Arc
 - **Smart Contracts**: Foundry (Solidity 0.8.x) — HandleRegistry, KycRegistry, PayRouter, ScheduledPayouts
-- **Chain**: Arc mainnet (chain ID 5042) — USDC is the native gas token
+- **Chain**: Arc mainnet (chain ID 5042) / Arc Testnet (chain ID 5042002) — USDC is the native gas token
 
 ## Development
 
@@ -75,14 +75,15 @@ bun run check
 
 ## Smart Contracts
 
-Three contracts in `contracts/`:
+Four contracts in `contracts/`:
 
 - **HandleRegistry** — free handle claim/release (one per wallet, non-transferable, reserved list at deploy)
-- **KycRegistry** — tier 0/1/2 per address with expiry, VERIFIER_ROLE write access
+- **KycRegistry** — tier 0/1/2 per address with expiry, VERIFIER_ROLE write access (read-only at launch — no KYC gate on any payment path)
 - **PayRouter** — all payment flows: direct send, handle send, payment requests, 30-minute bill order escrow with Permit2 witness variant; timelocked config changes. Constructor accepts an `InitialBiller[]` array so multiple billers can be registered at deploy time
+- **ScheduledPayouts** — pay-later, allowances, vesting, payroll, and streaming schedules backed by Permit2
 
-All payment actions use Permit2 `SignatureTransfer` (exact amount, single-use nonce). The one-time `USDC.approve(Permit2, max)` is documented in `AUDIT.md`.
+All payment actions use Permit2 `SignatureTransfer` (exact amount, single-use nonce). A 25 USDC per-payment global cap is enforced unconditionally on-chain. The one-time `USDC.approve(Permit2, max)` is documented in `AUDIT.md`.
 
-Deploy order: HandleRegistry → KycRegistry → PayRouter. PayRouter takes both registry addresses as constructor arguments. After deploy, set contract addresses in `.env` and grant `OPERATOR_ROLE`, `VERIFIER_ROLE`, `PAUSER_ROLE` to the appropriate wallets.
+Deploy order: HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts. PayRouter takes both registry addresses as constructor arguments. After deploy, set contract addresses in `.env` and grant `OPERATOR_ROLE`, `VERIFIER_ROLE`, `PAUSER_ROLE` to the appropriate wallets.
 
-See `AUDIT.md` for documented design decisions and `AGENTS.md` for deploy parameters.
+This is a hackathon/MVP launch. Contracts have not been independently audited. See `AUDIT.md` for documented design decisions and `docs/mainnet-readiness-report.md` for the full pre-mainnet evidence report.

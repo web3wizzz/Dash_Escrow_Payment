@@ -1,33 +1,42 @@
 # DA$H Arc Mainnet Readiness Report
-Generated: 2026-10-29  
-Status: **NO-GO — 3 owner actions required before mainnet**
+Generated: 2026-10-29 | Dry-run: 2026-10-30 | Configuration review: 2026-10-31
+Status: **NO-GO — 4 owner actions required before mainnet**
+
+> This is a hackathon/MVP launch. Contracts have not been independently audited.
+> Do not deploy without completing all NO-GO items below and your own independent review.
 
 ---
 
 ## Summary
 
-235 unit/fuzz tests pass. 9/9 fork EIP-712 tests pass against live Arc Testnet Permit2.
-Deployment dry-run succeeds (gas estimate: ~0.35 USDC on testnet, comparable on mainnet).
-All on-chain preconditions for mainnet (USDC, Permit2) are verified live.
-Three blockers remain that require your action: dedicated role wallets (B1), dedicated biller
-addresses (B2), and real-wallet end-to-end smoke tests on testnet (B3).
-GitHub push (B4) requires your browser authentication.
+| Evidence | Result |
+|---|---|
+| Unit + fuzz tests | 235/235 pass |
+| Fork EIP-712 tests (live Arc Testnet Permit2) | 9/9 pass |
+| Mainnet dry-run (chain 5042, no broadcast) | Success — 0.3448 USDC gas |
+| USDC verified on Arc mainnet | symbol="USDC", decimals=6 |
+| Permit2 verified on Arc mainnet | live, domain separator confirmed |
+| delegatecall / selfdestruct in production contracts | None found |
+| Proxy / upgradeability pattern | None found |
+| Admin/operator user-fund drain path | None found |
+
+Four blockers remain and require your action before any mainnet broadcast.
 
 ---
 
 ## 1. Current Testnet Deployments
 
-All verified by live on-chain reads (2026-10-29).
+Verified by live on-chain reads (2026-10-29). Arc Testnet, chain ID 5042002.
 
-| Contract | Address (Arc Testnet 5042002) | Key state |
+| Contract | Address | Key state |
 |---|---|---|
 | HandleRegistry | `0x34cae0957ec0cd2327e134f2008ee111e66ca081` | admin = platform deployer |
 | KycRegistry | `0x3a480497c8d48c065dac5fdd46ea339aeb9a8bfd` | admin = platform deployer |
 | PayRouter v2 | `0x37f2edadf59cf2027cf52f13ed2272a3cf69055b` | globalCap=25 USDC, feeBps=0, timeout=1800s |
 | ScheduledPayouts | `0x95f13b64172e6df601fd6cec3f3c0b71d0e6f917` | globalCap=25 USDC |
 
-Live reads (evidence):
-- `PayRouter.globalPerPaymentCap()` → `25000000` (25 USDC, 6 dec) ✓
+Live reads:
+- `PayRouter.globalPerPaymentCap()` → `25000000` (25 USDC) ✓
 - `PayRouter.feeBps()` → `0` ✓
 - `PayRouter.orderTimeoutSeconds()` → `1800` ✓
 - `PayRouter.feeWallet()` → `0x5B12Ce46...` (platform deployer — testnet only) ✓
@@ -38,231 +47,226 @@ Live reads (evidence):
 
 ---
 
-## 2. Required Role Wallet Addresses
+## 2. Mainnet Dry-Run Results (2026-10-30)
 
-The deploy script requires four env vars. Below is each role, what it controls, security level
-required, and whether it can share an address with another role.
+Command run (no `--broadcast`):
+```bash
+forge script contracts/script/Deploy.s.sol \
+  --rpc-url https://rpc.mainnet.arc.io \
+  --via-ir
+```
+
+Output:
+```
+Script ran successfully.
+Chain 5042
+
+=== Dash deploy ===
+Deployer (msg.sender): will hand off admin after setup
+Admin (final):    0x1111... [placeholder — replace with real admin wallet]
+Operator:         0x2222... [placeholder — replace with real operator wallet]
+Verifier:         0x1111...
+Pauser:           0x1111...
+FeeWallet:        0x1111...
+USDC:             0x3600000000000000000000000000000000000000
+Permit2:          0x000000000022D473030F116dDEE9F6B43aC78BA3
+
+HandleRegistry:   0x5b73C5498c1E3b4dbA84de0F1833c4a029d90519
+KycRegistry:      0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496
+PayRouter:        0x34A1D3fff3958843C43aD80F30b94c510645C316
+ScheduledPayouts: 0x90193C961A926261B756D1E5bb255e67ff9498A1
+
+NOTE: Deployer has zero roles on all contracts after this deploy.
+
+Estimated gas price:              42.000000001 gwei
+Estimated total gas used:         8,209,595
+Estimated amount required:        0.344802990 USDC
+```
+
+All four contracts simulated. Deployer ends with zero roles (deployer != admin path confirmed). No reverts. VITE_* output produced.
+
+Note: Predicted addresses above use placeholder keys. Real addresses are deterministic on the actual deployer nonce — record them from the broadcast output.
+
+---
+
+## 3. Role Wallet Requirements
 
 ### DEPLOY_ADMIN_ADDRESS — DEFAULT_ADMIN_ROLE
-Holds on: HandleRegistry, KycRegistry, PayRouter, ScheduledPayouts
+**Holds on:** HandleRegistry, KycRegistry, PayRouter, ScheduledPayouts
 
-**Powers:**
+Powers:
 - Grant/revoke any role on any contract
-- Queue and execute timelocked config changes (feeBps, feeWallet, globalCap, billers, orderTimeout, minBillTier)
-- After the 24h timelock: change fee recipient, fee percentage, global per-payment cap
+- Queue timelocked config changes (feeBps, feeWallet, globalCap, billers, orderTimeout)
+- Execute config changes after 24-hour timelock
 
-**Security requirement:** Hardware wallet or multisig. This is the highest-privilege address in the
-system. If compromised, an attacker can drain the fee wallet and change all configuration (but
-cannot directly access user funds held in escrow or scheduled payouts — those are released only
-to the original payer/recipient by contract logic).
-
-**Must be separate from:** DEPLOY_OPERATOR_ADDRESS (hot wallet). If admin == operator, a
-compromised hot wallet also controls all configuration.
-
-**Can share with:** DEPLOY_PAUSER_ADDRESS and DEPLOY_VERIFIER_ADDRESS at launch (lower risk).
-However separating them is strongly recommended.
+Security requirement: Hardware wallet or multisig. Highest-privilege key in the system.
+**Must be separate from** `DEPLOY_OPERATOR_ADDRESS`.
+**Can share with** `DEPLOY_VERIFIER_ADDRESS` and `DEPLOY_PAUSER_ADDRESS` at launch.
 
 ---
 
 ### DEPLOY_OPERATOR_ADDRESS — OPERATOR_ROLE
-Holds on: PayRouter only
+**Holds on:** PayRouter only
 
-**Powers:**
-- `fulfillOrder(orderId)` — release escrowed USDC to biller treasury
+Powers:
+- `fulfillOrder(orderId)` — release escrowed USDC to biller treasury (snapshot at order creation)
 - `rejectOrder(orderId)` — return escrowed USDC to payer
 
-**Security requirement:** Backend hot wallet (can be a software key). If compromised, an attacker
-can fulfill or reject pending orders, but cannot create orders, move user funds beyond what is
-already held in escrow, or change configuration.
-
-**Must be separate from:** DEPLOY_ADMIN_ADDRESS.
-
-**Can share with:** DEPLOY_BILLER_ADDRESS if the same backend handles both operations (acceptable
-at launch but suboptimal — recommend separating before scaling).
+Security requirement: Backend hot wallet (software key acceptable).
+**Must be separate from** `DEPLOY_ADMIN_ADDRESS`.
+**Can share with** `DEPLOY_BILLER_ADDRESS` (recommended at launch — same backend handles both).
 
 ---
 
 ### DEPLOY_VERIFIER_ADDRESS — VERIFIER_ROLE
-Holds on: KycRegistry only
+**Holds on:** KycRegistry only
 
-**Powers:**
-- `setTier(address, tier, expiry)` — set KYC tier for a wallet
+Powers: `setTier(address, tier, expiry)` — set KYC tier
 
-**Current usage:** KYC tiers are NOT enforced on any payment path at launch (permissionless
-model). The verifier role is retained for future governance only.
-
-**Can be set to DEPLOY_ADMIN_ADDRESS at launch.** This is safe because:
-1. Setting a tier has no immediate financial effect (payment gates removed).
-2. You can rotate to a dedicated verifier later via `grantRole` + `renounceRole` on KycRegistry.
+Current usage: KYC tiers are **not enforced** on any payment path. Verifier role is retained for future governance only.
+**Safe to set equal to `DEPLOY_ADMIN_ADDRESS` at launch.**
 
 ---
 
 ### DEPLOY_PAUSER_ADDRESS — PAUSER_ROLE
-Holds on: PayRouter and ScheduledPayouts
+**Holds on:** PayRouter and ScheduledPayouts
 
-**Powers:**
-- `pause()` / `unpause()` — block new payment entry points (send, createOrder, deposit)
-- Refunds, reclaims, cancellations, and claims always work even when paused
+Powers: `pause()` / `unpause()` — block new payment inflows. Refunds, reclaims, cancellations, and claims always remain live even when paused.
 
-**Security requirement:** Should be reachable quickly in an emergency. A hardware wallet that
-you can access within minutes, or a 1-of-N multisig.
-
-**Can share with:** DEPLOY_ADMIN_ADDRESS (the admin can always pause via PAUSER_ROLE if it holds
-both). Separate only if you want a non-admin key that can pause but not change config.
+Security requirement: Quickly reachable in an emergency.
+**Safe to set equal to `DEPLOY_ADMIN_ADDRESS` at launch.**
 
 ---
 
 ### DEPLOY_BILLER_ADDRESS and DEPLOY_BILLER_TREASURY
+
 Not a role — registered in the PayRouter constructor as the initial biller.
 
-- `DEPLOY_BILLER_ADDRESS`: the address that calls `fulfillOrder` and `rejectOrder` (same as
-  OPERATOR_ROLE in most deployments — the operator IS the biller's fulfillment backend).
-- `DEPLOY_BILLER_TREASURY`: where fulfilled escrow payments are sent. This should be a
-  dedicated treasury wallet, NOT the admin or operator address, so billing revenue is isolated.
-
-**Recommendation:** Use your operator address as `DEPLOY_BILLER_ADDRESS` and a dedicated
-treasury address as `DEPLOY_BILLER_TREASURY`. The treasury only receives USDC; it needs no
-signing capability and can be a cold wallet.
+- `DEPLOY_BILLER_ADDRESS`: address that calls `fulfillOrder`/`rejectOrder`. Default: `DEPLOY_OPERATOR_ADDRESS`.
+- `DEPLOY_BILLER_TREASURY`: destination for fulfilled escrow payments (snapshotted at order creation — cannot be redirected after an order is placed). **Must be a dedicated cold wallet, never equal to admin or operator.**
 
 ---
 
-### Minimum-viable mainnet address set (4 wallets)
+### Minimum-viable mainnet address set
 
-You can deploy safely with 4 addresses:
-
-| Env var | Wallet | Type |
+| Env var | Wallet | Recommended type |
 |---|---|---|
-| `DEPLOY_ADMIN_ADDRESS` | Admin multisig | Hardware/multisig |
-| `DEPLOY_OPERATOR_ADDRESS` = `DEPLOY_BILLER_ADDRESS` | Operator backend | Software hot key |
-| `DEPLOY_VERIFIER_ADDRESS` | (set to admin at launch) | Same as admin |
-| `DEPLOY_PAUSER_ADDRESS` | (set to admin at launch) | Same as admin |
-| `DEPLOY_BILLER_TREASURY` | Treasury | Cold wallet |
-| `DEPLOY_FEE_WALLET_ADDRESS` | (set to admin at launch) | Same as admin |
+| `DEPLOY_ADMIN_ADDRESS` | Admin | Hardware wallet or multisig |
+| `DEPLOY_OPERATOR_ADDRESS` | Operator / biller fulfillment backend | Software hot key |
+| `DEPLOY_VERIFIER_ADDRESS` | Set to admin at launch | Same as admin |
+| `DEPLOY_PAUSER_ADDRESS` | Set to admin at launch | Same as admin |
+| `DEPLOY_BILLER_TREASURY` | Treasury | Dedicated cold wallet |
+| `DEPLOY_FEE_WALLET_ADDRESS` | Set to admin while feeBps=0 | Same as admin |
 
-This gives you two operationally distinct keys: a cold admin and a hot operator/biller.
-Expand to more keys as the operation scales.
-
----
-
-## 3. Permit2 and USDC on Arc Mainnet — Evidence
-
-### USDC (0x3600000000000000000000000000000000000000)
-- `symbol()` → `"USDC"` ✓ (live read 2026-10-29)
-- `decimals()` → `6` ✓
-- Source: FiatTokenProxy (Circle's canonical USDC), same address on mainnet and testnet
-
-### Permit2 (0x000000000022D473030F116dDEE9F6B43aC78BA3)
-- `allowance(...)` call succeeded → contract is live ✓ (live read 2026-10-29)
-- Domain separator formula verified: `keccak256(abi.encode(EIP712Domain(string name,uint256 chainId,address verifyingContract), keccak256("Permit2"), 5042, 0x000...BA3))` = `0xa88a1b742ab6890402e6ee74f2359f3723ab547c6dc3b850249bdbffebe2b18f`
-- Computed value matches live chain read: `0xa88a1b74...` ✓
-- Permit2 witness selector: `0x137c29fe` (nested tuple ABI encoding) — verified against bytecode
-
-### Key EIP-712 findings from fork test campaign
-- Permit2 domain type string: `EIP712Domain(string name,uint256 chainId,address verifyingContract)` — includes `name = "Permit2"`
-- `permitWitnessTransferFrom` ABI selector: `0x137c29fe` (inner struct = nested tuple, not flattened)
-- Arc USDC `transfer`/`transferFrom` routes through native precompile `0x1800...` — cannot be
-  simulated in Foundry fork tests. Real-wallet execution required for full transfer path coverage.
-- Fork test workaround: `vm.mockCall` on the ERC-20 movement; signature verification path fully tested.
+This gives two operationally distinct keys: a cold admin and a hot operator/biller. Expand to more keys as the operation scales.
 
 ---
 
-## 4. Deploy Script Analysis
+## 4. Mainnet Configuration Review (contracts/script/Deploy.s.sol)
 
-### Reviewed: contracts/script/Deploy.s.sol (2026-10-29)
+Reviewed: 2026-10-31. Arc mainnet chain ID: 5042.
+USDC: `0x3600000000000000000000000000000000000000`
+Permit2: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
 
-**Deployment order:** HandleRegistry → KycRegistry → PayRouter → ScheduledPayouts  
-**All correct and safe. No critical issues.**
+### Constructor parameter checks
+
+| Parameter | Value in script | Expected | Result |
+|---|---|---|---|
+| `GLOBAL_CAP` | `25_000_000` | 25 USDC (6 dec) | PASS |
+| `INITIAL_FEE_BPS` | `0` | 0% at launch | PASS |
+| `MIN_BILL_TIER` | `0` | Permissionless escrow | PASS |
+| `ORDER_TIMEOUT` | `1800` | 30 minutes | PASS |
+| `ARC_USDC` | `0x3600...0000` | Arc canonical USDC | PASS |
+| `CANONICAL_PERMIT2` | `0x0000...BA3` | Canonical Permit2 | PASS |
+| `T0_PER_PAYMENT` | `5_000_000` | 5 USDC | PASS |
+| `T0_DAILY` | `50_000_000` | 50 USDC | PASS |
+| `T1_PER_PAYMENT` | `100_000_000` | 100 USDC | PASS |
+| `T1_DAILY` | `20_000_000_000` | 20,000 USDC | PASS |
+| `T2_PER_PAYMENT` | `20_000_000_000` | 20,000 USDC | PASS |
+| `T2_DAILY` | `0` | Unlimited | PASS |
+| `feeWallet` default | `DEPLOY_ADMIN_ADDRESS` | Not deployer | PASS |
+| `billerAddr` default | `DEPLOY_OPERATOR_ADDRESS` | Not deployer | PASS |
+| `billerTreasury` default | `DEPLOY_ADMIN_ADDRESS` | Not deployer | PASS |
+
+### Role assignment checks
 
 | Check | Result |
 |---|---|
-| Constructor zero-address guards | All four contracts revert on zero address ✓ |
-| feeWallet defaults | Defaults to DEPLOY_ADMIN_ADDRESS (not deployer) ✓ |
-| Biller defaults | Defaults to DEPLOY_OPERATOR_ADDRESS (not deployer) ✓ |
-| Biller treasury defaults | Defaults to DEPLOY_ADMIN_ADDRESS ✓ |
-| MIN_BILL_TIER | 0 (permissionless escrow at launch) ✓ |
-| GLOBAL_CAP | 25_000_000 (25 USDC, 6 dec) ✓ |
-| INITIAL_FEE_BPS | 0 ✓ |
-| ORDER_TIMEOUT | 1800 seconds (30 min) ✓ |
-| Tier 1 daily cap | 20_000_000_000 (20,000 USDC) ✓ (was 20_000_000_000_000 before fix) |
-| Deployer admin renounce | Guarded: only renounces when deployer != admin ✓ |
-| PAUSER_ROLE on deployer | Renounced when deployer != admin ✓ |
-| Reserved handles | "dash", "admin", "support" pre-reserved in HandleRegistry ✓ |
-| USDC and Permit2 defaults | Arc canonical addresses hardcoded as fallback ✓ |
+| Deployer deploys all 4 contracts with itself as initialAdmin | PASS — enables grantRole calls |
+| VERIFIER_ROLE granted to `verifier` on KycRegistry | PASS |
+| OPERATOR_ROLE granted to `operator` on PayRouter | PASS |
+| PAUSER_ROLE granted to `pauser` on PayRouter | PASS |
+| PAUSER_ROLE granted to `pauser` on ScheduledPayouts | PASS |
+| DEFAULT_ADMIN_ROLE granted to `admin` on all 4 contracts | PASS |
+| DEFAULT_ADMIN_ROLE renounced from deployer when deployer != admin | PASS |
+| PAUSER_ROLE renounced from deployer when deployer != admin | PASS |
+| Warning printed when deployer == admin | PASS — explicit console note |
+| Reserved handles pre-registered ("dash", "admin", "support") | PASS |
+| Zero-address guards on all required constructor args | PASS — all 4 contracts revert on address(0) |
 
-**One known behaviour to understand:** When deployer == admin (testnet pattern), the deployer
-retains DEFAULT_ADMIN_ROLE and PAUSER_ROLE after deploy. This is correct and documented.
-On mainnet the deployer must be a separate hot key; the designated admin must be a multisig.
+### Security surface checks
 
-### Dry-run simulation result (2026-10-29, Arc Testnet)
-```
-Script ran successfully.
-Chain 5042002
-Estimated gas price: 42.75 gwei
-Estimated total gas used: 8,209,595
-Estimated amount required: 0.35096 USDC
-```
-All 4 contracts deployed and all roles granted without revert. VITE_* output produced.
+| Check | Result |
+|---|---|
+| `delegatecall` in production contracts | None found |
+| `selfdestruct` in production contracts | None found |
+| Proxy / upgradeability pattern | None found — all contracts are non-upgradeable |
+| Admin-callable user-fund drain path | None — admin controls config only (behind 24h timelock); cannot move escrowed USDC or scheduled deposits |
+| Operator-callable user-fund drain path | None — operator can only `fulfillOrder` (to snapshotted treasury) or `rejectOrder` (back to payer); no arbitrary transfer |
+| `ScheduledPayouts.withdraw()` | Pull-payment escape hatch for caller's own `pendingWithdrawals[msg.sender]` balance only — no admin access, no arbitrary target |
+| `reclaimOrder` caller restriction | None (permissionless after timeout) — USDC always goes to `order.payer`, never to caller |
+| Biller treasury snapshotted at order creation | PASS — `order.billerTreasury` set in `createOrder`, cannot be changed after |
+| Config changes require 24h timelock | PASS — `queueConfigChange` + `executeConfigChange`, 86400s minimum delay |
+
+**Critical mainnet requirement:** The deployer private key (`--private-key $PRIVATE_KEY`) MUST be different from `DEPLOY_ADMIN_ADDRESS`. When deployer == admin the renounce step is correctly skipped (testnet pattern), leaving the deployer as the permanent admin — unsafe for mainnet. Use a dedicated ephemeral hot key as deployer and a cold wallet / multisig as admin.
 
 ---
 
-## 5. Biller Registration
+## 5. Permit2 and USDC on Arc Mainnet — Evidence
 
-### Testnet (current)
-Registered in constructor of PayRouter v2 (`0x37f2edaf...`):
-- Biller: `0x5B12Ce46C7194aD57d143bC22847224047b1Ef42` (platform deployer)
-- Treasury: `0x5B12Ce46C7194aD57d143bC22847224047b1Ef42` (platform deployer)
-- `isBiller()` → `true` ✓ (live read)
+### USDC (`0x3600000000000000000000000000000000000000`)
+- `symbol()` → `"USDC"` ✓ (live read 2026-10-29)
+- `decimals()` → `6` ✓
+- Source: FiatTokenProxy (Circle's canonical USDC), same address on both mainnet and testnet
 
-This is correct for testnet. On mainnet, set `DEPLOY_BILLER_ADDRESS` and
-`DEPLOY_BILLER_TREASURY` explicitly before deploying.
+### Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`)
+- `allowance(...)` call succeeded → contract live ✓ (live read 2026-10-29)
+- Domain separator: `keccak256(abi.encode(EIP712Domain(string name,uint256 chainId,address verifyingContract), keccak256("Permit2"), 5042, 0x000...BA3))` = `0xa88a1b742ab6890402e6ee74f2359f3723ab547c6dc3b850249bdbffebe2b18f` ✓
+- Witness selector: `0x137c29fe` (nested tuple, verified from bytecode) ✓
 
-### Mainnet biller registration (two paths)
-
-**Path A — Recommended: register in constructor (zero delay)**  
-Set both env vars before running the deploy script. The biller is registered atomically at
-deploy time with no timelock required.
-```
-DEPLOY_BILLER_ADDRESS=<your-operator-address>
-DEPLOY_BILLER_TREASURY=<your-treasury-address>
-```
-
-**Path B — Post-deploy: timelocked registration (24h delay)**  
-If you need to add a biller after deploy:
-```solidity
-// Step 1: Queue (call from admin wallet)
-bytes32 key = keccak256("addBiller");
-bytes memory val = abi.encode(billerAddress, treasuryAddress);
-payRouter.queueConfigChange(key, val);
-// wait 24 hours (block.timestamp >= queuedAt + 86400)
-
-// Step 2: Execute (call from admin wallet)
-payRouter.executeConfigChange(key);
-```
+### Key EIP-712 findings from fork test campaign
+- Permit2 domain type string includes `name = "Permit2"`: `EIP712Domain(string name,uint256 chainId,address verifyingContract)`
+- `permitWitnessTransferFrom` uses nested-tuple ABI encoding — selector `0x137c29fe`, not `0xe9ef212b`
+- Arc USDC `transfer`/`transferFrom` routes through native precompile `0x1800...` — cannot be simulated in Foundry fork tests. Real browser-wallet execution required for full transfer path verification.
 
 ---
 
 ## 6. Test Results — Evidence
 
-### Unit + fuzz tests (no fork required)
-Run: `forge test --via-ir`  
+### Unit + fuzz tests
+```bash
+forge test --via-ir
+```
 Result: **235 passed, 0 failed, 0 skipped** (2026-10-29)
 
-Breakdown:
-- HandleRegistry: 30 (3 fuzz)
-- KycRegistry: 24 (2 fuzz, 256 runs each)
-- PayRouter.Send: 20
-- PayRouter.Orders: 30
-- PayRouter.Timelock: 20
-- ScheduledPayouts: 5 files, all schedule types
-- Deploy: 23 role invariant tests
-- Permissionless: 10 tests (tier-0 wallet, global cap enforcement)
+| Suite | Tests |
+|---|---|
+| HandleRegistry | 30 (3 fuzz) |
+| KycRegistry | 24 (2 fuzz, 256 runs each) |
+| PayRouter.Send | 20 |
+| PayRouter.Orders | 30 |
+| PayRouter.Timelock | 20 |
+| ScheduledPayouts (5 files) | all schedule types |
+| Deploy (role invariants) | 23 |
+| Permissionless (global cap) | 10 |
 
-### Fork EIP-712 tests (requires `--fork-url`)
-Run: `forge test --match-contract ForkPermit2Test --fork-url https://rpc.testnet.arc.io --via-ir`  
+### Fork EIP-712 tests
+```bash
+forge test --match-contract ForkPermit2Test --fork-url https://rpc.testnet.arc.io --via-ir
+```
 Result: **9 passed, 0 failed** (2026-10-29)
 
-Tests cover:
-1. Domain separator matches expected formula with `name="Permit2"` ✓
+1. Domain separator matches `name="Permit2"` formula ✓
 2. Plain permit valid signature accepted by live Permit2 ✓
 3. Nonce bitmap updated after use ✓
 4. Replay reverts ✓
@@ -270,23 +274,23 @@ Tests cover:
 6. Zero signature reverts ✓
 7. Witness permit valid signature accepted ✓
 8. Tampered witness reverts ✓
-9. No admin/operator drain path exists ✓
+9. No admin/operator drain path ✓
 
 ---
 
-## 7. Wallet Address Requirements — Summary
+## 7. Required .env Values for Mainnet Deploy
 
-You need to provide these values in `.env` before running the mainnet deploy script:
+```bash
+# Required — set real wallet addresses for all four before running the deploy script
+DEPLOY_ADMIN_ADDRESS=        # multisig or hardware wallet (cold)
+DEPLOY_OPERATOR_ADDRESS=     # backend hot wallet
+DEPLOY_VERIFIER_ADDRESS=     # can equal DEPLOY_ADMIN_ADDRESS at launch
+DEPLOY_PAUSER_ADDRESS=       # can equal DEPLOY_ADMIN_ADDRESS at launch
 
-```
-# Required
-DEPLOY_ADMIN_ADDRESS=      # multisig or hardware wallet
-DEPLOY_OPERATOR_ADDRESS=   # backend hot wallet (also used as default biller)
-DEPLOY_VERIFIER_ADDRESS=   # can be same as DEPLOY_ADMIN_ADDRESS at launch
-DEPLOY_PAUSER_ADDRESS=     # can be same as DEPLOY_ADMIN_ADDRESS at launch
-DEPLOY_BILLER_TREASURY=    # dedicated treasury cold wallet (DO NOT set to admin/operator)
+# Required — dedicated cold wallet, NOT equal to admin or operator
+DEPLOY_BILLER_TREASURY=      # treasury for fulfilled escrow payments
 
-# Optional (these have safe defaults shown above)
+# Optional — safe defaults listed in Section 3
 # DEPLOY_FEE_WALLET_ADDRESS= defaults to DEPLOY_ADMIN_ADDRESS
 # DEPLOY_BILLER_ADDRESS=     defaults to DEPLOY_OPERATOR_ADDRESS
 # DEPLOY_USDC_ADDRESS=       defaults to 0x3600000000000000000000000000000000000000
@@ -294,52 +298,43 @@ DEPLOY_BILLER_TREASURY=    # dedicated treasury cold wallet (DO NOT set to admin
 ```
 
 Do NOT set any of these to the platform deployer wallet `0x5B12Ce46C7194aD57d143bC22847224047b1Ef42`.
-That address is shared across all Arc Studio users, is testnet-only, and you do not control it.
+That address is testnet-only, shared across Arc Studio users, and not under your control.
 
 ---
 
-## 8. Real-Wallet E2E Smoke Tests (B3)
+## 8. Real-Wallet E2E Test Flows (B3)
 
-These four flows must be executed with a real connected wallet on Arc Testnet before mainnet.
-They are the only way to verify the full USDC transfer path (Arc's native precompile cannot be
-simulated in Foundry).
+Eight flows must be executed with a real browser wallet on Arc Testnet.
+Arc USDC transfer routes through a native precompile that cannot be simulated in Foundry — this is the only way to verify the full execution path.
 
-Full step-by-step instructions: `docs/testnet-smoke-test.md`
+Full step-by-step instructions: `docs/testnet-e2e-checklist.md`
 
-### What to record for each test
+Minimum USDC required: ~15 USDC.
+Get test USDC: "Get test USDC" button in the Arc Studio sidebar.
 
-| Test | What to record |
+| Flow | What to record |
 |---|---|
-| Send (1–5 USDC) | Tx hash; sender balance before/after; recipient balance before/after |
-| Bill order create | Tx hash of `createOrder`; orderId from event |
-| Bill order reclaim | Tx hash of `reclaimOrder` after 30-min timeout |
-| ScheduledPayouts deposit | Tx hash of `deposit`; scheduleId from event |
-| ScheduledPayouts claim | Tx hash of `claim`; amount released |
+| A: Permit2 approval | Tx hash; confirm no repeat approval required |
+| B: Direct USDC send | Tx hash; sender/recipient balances before and after |
+| C: Escrow create | Tx hash; orderId from ORD_CREATED event |
+| D: Escrow fulfill (operator) | Tx hash; treasury balance before and after |
+| E: Escrow expiry + reclaim | Create tx + reclaim tx hash; payer balance restored |
+| F: Pay-later deposit | Tx hash; scheduleId; sender balance before and after |
+| G: Pay-later claim | Tx hash; recipient balance before and after |
+| H: Streaming partial claim | Deposit tx + claim tx; amount claimed vs expected accrual |
 
-Provide these hashes and I will verify each on-chain and update this report with confirmed evidence.
-
-### Minimum USDC required
-~5 USDC covers all four tests. Get test USDC from the "Get test USDC" button in the Arc Studio sidebar.
-
-### How to verify a transaction after execution
-```
-# Any tx hash from the tests:
-curl -s "https://explorer.testnet.arc.io/api?module=transaction&action=gettxinfo&txhash=<TX_HASH>"
-# Or open: https://explorer.testnet.arc.io/tx/<TX_HASH>
-```
+Provide tx hashes and this report will be updated with on-chain evidence.
 
 ---
 
 ## 9. GitHub Push Status (B4)
 
-**Status: 9 commits ahead of origin/main. Not yet pushed.**
+Status: 10+ commits ahead of `origin/main`. Not yet pushed.
 
 The sandbox has GitHub CLI (`gh`) installed but unauthenticated.
-To push these 9 commits to `web3wizzz/Dash_Escrow_Payment`:
 
 **Option A — Arc Studio GitHub integration (recommended)**
-Open the **Integrations** menu in the workbench header → **Connect GitHub** → authorize → then
-say "push to GitHub" and the push will complete without leaving the browser.
+Open the Integrations menu in the workbench header, choose Connect GitHub, authorize, then say "push to GitHub".
 
 **Option B — GitHub CLI in terminal**
 ```bash
@@ -347,66 +342,95 @@ gh auth login          # opens browser for OAuth
 git push origin main
 ```
 
-**What will be pushed (non-secret files only):**
-- `contracts/PayRouter.sol` — permissionless model (effectiveTier removed from payment paths)
-- `contracts/ScheduledPayouts.sol` — permissionless model
-- `contracts/script/Deploy.s.sol` — MIN_BILL_TIER=0, role-transfer pattern, defaults fixed
-- `contracts/test/` — 8 new/updated test files (234 unit tests + 9 fork tests)
-- `contracts/contract-metadata/` — deployment metadata
-- `docs/` — deployment manifest, security review, smoke test guide, this report
-- `AGENTS.md`, `AUDIT.md`, `README.md` — updated project documentation
-- `.gitignore` — excludes .env, .circle/, broadcast/, out/, console.jsonl
-
 `.env` is in `.gitignore` and will NOT be pushed. No secrets will be exposed.
 
 ---
 
 ## 10. Final GO/NO-GO Checklist
 
+### Automated / code-review items (no owner action required)
+
 | # | Item | Status | Evidence |
 |---|---|---|---|
-| C1 | USDC at canonical address on Arc mainnet | GO | `symbol()="USDC"`, `decimals()=6` — live read 2026-10-29 |
-| C2 | Permit2 at canonical address on Arc mainnet | GO | `allowance()` call succeeded — live read 2026-10-29 |
-| C3 | Permit2 domain separator verified for mainnet | GO | Computed = `0xa88a1b74...`, matches live chain |
-| C4 | Permit2 witness selector verified (`0x137c29fe`) | GO | From fork test + ABI analysis |
-| C5 | 235 unit/fuzz tests pass | GO | `forge test --via-ir`: 235/235 — 2026-10-29 |
-| C6 | 9 fork EIP-712 tests pass vs live Permit2 | GO | `--fork-url https://rpc.testnet.arc.io`: 9/9 — 2026-10-29 |
-| C7 | Deploy script dry-run succeeds | GO | 0.35 USDC gas, all roles granted, no revert — 2026-10-29 |
-| C8 | Deploy script MIN_BILL_TIER=0 | GO | Constant set to 0 in Deploy.s.sol |
-| C9 | Deploy script feeWallet defaults to admin (not deployer) | GO | Code review confirmed |
-| C10 | No admin/operator drain path in contracts | GO | `test_Fork_NoDirectDrainByAdmin` passes |
-| C11 | Deployer ends with zero roles when deployer != admin | GO | Deploy.s.sol renounce logic reviewed; 23 deploy tests pass |
-| **B1** | **Dedicated role wallets provided** | **NO-GO** | Addresses not yet supplied by owner |
-| **B2** | **Dedicated biller treasury provided** | **NO-GO** | DEPLOY_BILLER_TREASURY not yet set |
-| **B3** | **Real-wallet E2E smoke tests on testnet** | **NO-GO** | No tx hashes yet; flows documented in smoke-test guide |
-| **B4** | **9 commits pushed to GitHub** | **NO-GO** | `gh auth login` required; 9 commits pending |
+| C1 | USDC at canonical address on Arc mainnet | **GO** | `symbol()="USDC"`, `decimals()=6` — live read 2026-10-29 |
+| C2 | Permit2 at canonical address on Arc mainnet | **GO** | `allowance()` call succeeded — live read 2026-10-29 |
+| C3 | Permit2 domain separator verified for mainnet (chain 5042) | **GO** | Computed `0xa88a1b74...` matches live chain |
+| C4 | Permit2 witness selector verified (`0x137c29fe`) | **GO** | Fork test + ABI analysis |
+| C5 | 235 unit/fuzz tests pass | **GO** | `forge test --via-ir`: 235/235 — 2026-10-29 |
+| C6 | 9 fork EIP-712 tests pass vs live Permit2 | **GO** | `--fork-url testnet.arc.io`: 9/9 — 2026-10-29 |
+| C7 | Mainnet dry-run succeeds (chain 5042) | **GO** | 0.3448 USDC gas, no revert — 2026-10-30 |
+| C8 | `globalPerPaymentCap` = 25 USDC | **GO** | `GLOBAL_CAP = 25_000_000` in Deploy.s.sol |
+| C9 | `feeBps` = 0 at launch | **GO** | `INITIAL_FEE_BPS = 0` |
+| C10 | `minBillTier` = 0 (permissionless escrow) | **GO** | `MIN_BILL_TIER = 0` |
+| C11 | `orderTimeoutSeconds` = 1800 | **GO** | `ORDER_TIMEOUT = 1800` |
+| C12 | Biller treasury snapshotted at order creation | **GO** | `order.billerTreasury` immutable after `createOrder` |
+| C13 | `feeWallet` defaults to admin, not deployer | **GO** | `vm.envOr("DEPLOY_FEE_WALLET_ADDRESS", admin)` |
+| C14 | Deployer ends with zero roles when deployer != admin | **GO** | Renounce logic in Deploy.s.sol; 23 deploy tests pass |
+| C15 | No admin/operator user-fund drain path | **GO** | Code review: `fulfillOrder` → snapshotted treasury; `rejectOrder` → payer; admin controls config only |
+| C16 | No `delegatecall` in production contracts | **GO** | Full grep: no matches in PayRouter, ScheduledPayouts, HandleRegistry, KycRegistry |
+| C17 | No `selfdestruct` in production contracts | **GO** | Full grep: no matches |
+| C18 | No proxy / upgradeability pattern | **GO** | Full grep: no Proxy/UUPS/initialize matches |
+| C19 | `ScheduledPayouts.withdraw()` scoped to caller only | **GO** | `pendingWithdrawals[msg.sender]` — no admin path |
+| C20 | README updated: hackathon/MVP scope, no audit claim | **GO** | README.md updated 2026-10-30 |
+| C21 | AUDIT.md: permissionless model documented | **GO** | AUDIT.md Section "Permissionless Model" |
+
+### Owner actions (your wallets, your transactions)
+
+| # | Item | Status | Action required |
+|---|---|---|---|
+| **B1** | Dedicated role wallets provided | **NO-GO** | Set `DEPLOY_ADMIN_ADDRESS`, `DEPLOY_OPERATOR_ADDRESS`, `DEPLOY_VERIFIER_ADDRESS`, `DEPLOY_PAUSER_ADDRESS` in `.env` |
+| **B2** | Dedicated biller treasury provided | **NO-GO** | Set `DEPLOY_BILLER_TREASURY` to a cold wallet (not admin, not operator) |
+| **B3** | Real-wallet E2E flows A–H completed on Arc Testnet | **NO-GO** | Run all 8 flows from `docs/testnet-e2e-checklist.md`; provide tx hashes |
+| **B4** | 10+ commits pushed to GitHub | **NO-GO** | `gh auth login` then `git push origin main` (or use Integrations menu) |
 
 **Overall verdict: NO-GO**
 
-No mainnet transactions have been broadcast. Nothing will be without your explicit approval.
+No mainnet transactions have been broadcast. Nothing will be without your explicit approval after all blockers are cleared.
 
 ---
 
-## 11. Mainnet Deploy Command (do not run until all blockers cleared)
+## 11. Mainnet Deploy Command
+
+> Warning: Transactions on mainnet involve real funds and, once submitted, are irreversible. Any code used for mainnet must be independently reviewed, tested, validated, deployed, and operated by you. You are solely responsible for any losses, errors, or other consequences. Before proceeding, complete testnet E2E (B3), supply all role wallets (B1, B2), push to GitHub (B4), and perform your own independent review.
+
+This command is provided for reference. Do NOT run the `--broadcast` step without your explicit decision to proceed, after all blockers are cleared.
 
 ```bash
-# Set all role wallet addresses in .env first (see Section 7)
-# Then, with --broadcast only after your explicit GO decision:
+# Step 1: Set all role wallet addresses in .env (see Section 7)
 
+# Step 2: Export your deployer key — a dedicated ephemeral hot key, DIFFERENT from admin
+export PRIVATE_KEY=<your-deployer-hot-key>   # never commit; delete after deploy
+
+# Step 3: Dry-run on mainnet (no broadcast) — confirm gas and address log
+forge script contracts/script/Deploy.s.sol \
+  --rpc-url https://rpc.mainnet.arc.io \
+  --via-ir
+
+# Step 4: Broadcast — ONLY after you have reviewed the dry-run and cleared all blockers
 forge script contracts/script/Deploy.s.sol \
   --rpc-url https://rpc.mainnet.arc.io \
   --private-key $PRIVATE_KEY \
   --via-ir \
   --broadcast
 
-# Verify deployer has zero roles after:
-cast call <PAYROUTER_ADDR> \
+# Step 5: Verify deployer holds zero roles after deploy
+cast call <PAYROUTER_ADDRESS> \
   "hasRole(bytes32,address)(bool)" \
   0x0000000000000000000000000000000000000000000000000000000000000000 \
   $DEPLOYER_ADDRESS \
   --rpc-url https://rpc.mainnet.arc.io
 # Expected: false
+
+cast call <PAYROUTER_ADDRESS> \
+  "hasRole(bytes32,address)(bool)" \
+  $(cast keccak "OPERATOR_ROLE") \
+  $DEPLOYER_ADDRESS \
+  --rpc-url https://rpc.mainnet.arc.io
+# Expected: false
 ```
 
-After deploy, update AGENTS.md with mainnet addresses and add them to `.env` under separate
-`VITE_*_MAINNET` keys (or a separate `.env.mainnet` file, never committed).
+After a successful broadcast:
+1. Copy the printed `VITE_*` lines into `.env`
+2. Update `AGENTS.md` with mainnet addresses and tx hashes
+3. Restart the dev server: `bun run dev`
+4. Connect a wallet on Arc mainnet (chain ID 5042) and confirm the app reads the correct contracts

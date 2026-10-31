@@ -41,7 +41,7 @@ Removed tier-gate enforcement from payment paths. Now:
 - `minBillTier = 0` in Deploy script and `config/brand.ts`.
 - KYC immutables and tier storage retained for governance optionality.
 - Daily spend tracking retained in PayRouter (data, not enforcement).
-- Test suite: **234/234 unit+fuzz pass**; **9/9 fork tests pass** (against live Arc Testnet Permit2 via --fork-url).
+- Test suite: **235/235 unit+fuzz pass**; **9/9 fork tests pass** (against live Arc Testnet Permit2 via --fork-url). Total: 244 tests.
 - Frontend: TierPill removed from BalanceHero + WalletBar. `BillOrderForm` tier gate removed. `LimitsCard` shows global cap. `limitViolation()` simplified to global-cap only.
 
 ## Deployed Contracts — Arc Testnet (2026-10-28)
@@ -66,7 +66,7 @@ Fork test findings (2026-10-29):
 - Permit2 witness selector: 0x137c29fe (nested tuple), not 0xe9ef212b (flattened)
 - 9/9 fork EIP-712 tests pass against live Arc Testnet Permit2
 
-Mainnet status: NO-GO. Permit2 EIP-712 blocker cleared. Remaining: role wallets, dedicated biller, real-wallet E2E.
+Mainnet status: NO-GO. Permit2 EIP-712 blocker cleared. Mainnet dry-run passed (chain 5042, 0.3448 USDC gas, 8,209,595 gas units, 2026-10-30). Remaining blockers: B1 (role wallets), B2 (biller treasury), B3 (real-wallet E2E flows A–H), B4 (GitHub push). Full evidence: docs/mainnet-readiness-report.md.
 
 ## Contract Addresses (fill in after deploy)
 ```
