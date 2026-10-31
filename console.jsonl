@@ -438,3 +438,4 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793319554837}
 {"level":"debug","message":"[vite] hot updated: /src/components/shared/TxStatus.tsx","timestamp":1793319555135}
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793319555135}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1793467481439}
