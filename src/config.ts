@@ -18,7 +18,7 @@ const arcTestnetFact = requireChain(5042002)
 registerChain(arc.id, arcFact.rpcUrls[0])
 registerChain(arcTestnet.id, arcTestnetFact.rpcUrls[0])
 
-// MetaMask injected connector only — no WalletConnect to prevent QR modal loops
+// MetaMask injected connector only — WalletConnect removed to prevent QR modal loops
 const connectors = [injected({ target: 'metaMask' })]
 
 export const config = createConfig({
@@ -33,6 +33,7 @@ export const config = createConfig({
 
 /** The chain to target for all payment operations (Arc Testnet, chain ID 5042002) */
 export const TARGET_CHAIN_ID = arcTestnet.id // 5042002
+export const TARGET_CHAIN_ID_TESTNET = arcTestnet.id // kept for backward compat
 
 /**
  * Display name for the network shown in the UI.
