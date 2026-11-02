@@ -25,7 +25,7 @@ import type { ReactNode } from 'react'
 export function SandboxBadge() {
   return (
     <span
-      aria-label="Testnet environment"
+      aria-label="Demo environment"
       style={{
         fontFamily: '"Figtree",sans-serif',
         fontSize: 10,
@@ -41,7 +41,7 @@ export function SandboxBadge() {
         display: 'inline-block',
       }}
     >
-      Testnet
+      Demo
     </span>
   )
 }

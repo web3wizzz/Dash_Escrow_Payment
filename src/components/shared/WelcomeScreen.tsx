@@ -7,12 +7,11 @@
  */
 
 import { motion, useReducedMotion } from 'framer-motion'
-import { ConnectKitButton } from 'connectkit'
+import { useConnect } from 'wagmi'
+import { injected } from 'wagmi/connectors'
 import { ArrowUpRight, Shield, Zap, CalendarClock } from 'lucide-react'
-import { TARGET_CHAIN_ID } from '../../config'
+import { TARGET_CHAIN_ID, DISPLAY_NETWORK_NAME } from '../../config'
 import { DashLogoMark } from './DashLogo'
-
-const NETWORK_LABEL = TARGET_CHAIN_ID === 5042 ? 'Arc Mainnet' : 'Arc Testnet'
 
 const FEATURES = [
   {
@@ -39,6 +38,11 @@ const FEATURES = [
 
 export function WelcomeScreen() {
   const reduced = useReducedMotion()
+  const { connect, isPending: isConnecting } = useConnect()
+
+  const handleConnect = () => {
+    connect({ connector: injected({ target: 'metaMask' }), chainId: TARGET_CHAIN_ID })
+  }
 
   return (
     <div
@@ -116,7 +120,7 @@ export function WelcomeScreen() {
           >
             <span className="size-1.5 rounded-full" style={{ background: '#1A7F4E' }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.46)', letterSpacing: '0.04em' }}>
-              {NETWORK_LABEL} · USDC
+              {DISPLAY_NETWORK_NAME} · USDC
             </span>
           </div>
         </motion.div>
@@ -132,32 +136,30 @@ export function WelcomeScreen() {
           transition={{ duration: 0.20, delay: reduced ? 0 : 0.08, ease: [0.25, 0.1, 0.25, 1.0] }}
           className="mb-7"
         >
-          <ConnectKitButton.Custom>
-            {({ show }) => (
-              <button
-                onClick={show}
-                className="w-full"
-                style={{
-                  background: 'var(--saffron)',
-                  color: '#0A0B1E',
-                  fontFamily: '"Figtree",sans-serif',
-                  fontWeight: 700,
-                  fontSize: 15,
-                  borderRadius: 14,
-                  minHeight: 54,
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'background 0.14s ease, transform 0.10s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--saffron-hover)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--saffron)' }}
-                onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
-                onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
-              >
-                Connect Wallet
-              </button>
-            )}
-          </ConnectKitButton.Custom>
+          <button
+            onClick={handleConnect}
+            disabled={isConnecting}
+            className="w-full"
+            style={{
+              background: 'var(--saffron)',
+              color: '#0A0B1E',
+              fontFamily: '"Figtree",sans-serif',
+              fontWeight: 700,
+              fontSize: 15,
+              borderRadius: 14,
+              minHeight: 54,
+              border: 'none',
+              cursor: isConnecting ? 'wait' : 'pointer',
+              opacity: isConnecting ? 0.7 : 1,
+              transition: 'background 0.14s ease, transform 0.10s ease, opacity 0.14s ease',
+            }}
+            onMouseEnter={(e) => { if (!isConnecting) e.currentTarget.style.background = 'var(--saffron-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--saffron)' }}
+            onMouseDown={(e) => { if (!isConnecting) e.currentTarget.style.transform = 'scale(0.97)' }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+          >
+            {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+          </button>
 
           <p style={{ marginTop: 10, textAlign: 'center', fontSize: 12, color: 'var(--subtle)', fontFamily: '"Figtree",sans-serif' }}>
             Non-custodial · Your keys remain yours

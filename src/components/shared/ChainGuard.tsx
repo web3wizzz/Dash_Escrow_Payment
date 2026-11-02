@@ -5,7 +5,7 @@
 
 import { useAccount, useSwitchChain } from 'wagmi'
 import { AlertTriangle } from 'lucide-react'
-import { TARGET_CHAIN_ID } from '../../config'
+import { TARGET_CHAIN_ID, DISPLAY_NETWORK_NAME } from '../../config'
 
 interface ChainGuardProps {
   children: React.ReactNode
@@ -29,10 +29,10 @@ export function ChainGuard({ children }: ChainGuardProps) {
       <AlertTriangle className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--danger)' }} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-          Switch to Arc
+          Switch to {DISPLAY_NETWORK_NAME}
         </p>
         <p className="mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
-          This app runs on Arc mainnet. Your wallet is on a different network.
+          This app runs on {DISPLAY_NETWORK_NAME}. Your wallet is on a different network.
         </p>
       </div>
       <button

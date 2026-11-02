@@ -13,7 +13,7 @@ import { erc20Abi, formatUnits, isAddress, type Address, type Hex } from 'viem'
 import { Loader2, ArrowUpRight, AlertCircle, CheckCircle2, ChevronLeft, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getUsdc } from '../../onchain-facts'
-import { TARGET_CHAIN_ID } from '../../config'
+import { TARGET_CHAIN_ID, DISPLAY_NETWORK_NAME } from '../../config'
 import { useSend, useSendToHandle } from '../../hooks/usePayRouter'
 import { parseAmount } from '../../onchain-money'
 import { limitViolation } from '../../lib/tiers'
@@ -24,7 +24,7 @@ import { ChainGuard } from '../shared/ChainGuard'
 const usdcFact = getUsdc(TARGET_CHAIN_ID)
 const USDC_ADDRESS = (usdcFact?.address ?? '0x3600000000000000000000000000000000000000') as Address
 const USDC_DECIMALS = usdcFact?.decimals ?? 6
-const NETWORK_LABEL = TARGET_CHAIN_ID === 5042 ? 'Arc Mainnet' : 'Arc Testnet'
+const NETWORK_LABEL = DISPLAY_NETWORK_NAME
 const GLOBAL_CAP = '25.00'
 
 function isHandle(value: string): boolean {

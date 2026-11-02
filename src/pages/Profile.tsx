@@ -15,9 +15,8 @@ import { useRevokePermit2, usePermit2Status } from '../hooks/usePayRouter'
 import { TxStatus } from '../components/shared/TxStatus'
 import { formatAddress } from '../onchain-patterns-utils'
 import { buildAddressExplorerUrl } from '../onchain-facts'
-import { TARGET_CHAIN_ID } from '../config'
+import { TARGET_CHAIN_ID, DISPLAY_NETWORK_NAME } from '../config'
 
-const NETWORK_LABEL = TARGET_CHAIN_ID === 5042 ? 'Arc Mainnet' : 'Arc Testnet'
 const CHAIN_ID_DISPLAY = TARGET_CHAIN_ID.toString()
 const APP_VERSION = '1.0.0-beta'
 
@@ -227,7 +226,7 @@ export function Profile() {
           value={
             <span className="flex items-center gap-1.5">
               <span className="size-1.5 rounded-full" style={{ background: 'var(--success)' }} />
-              {NETWORK_LABEL}
+              {DISPLAY_NETWORK_NAME}
               <span className="mono text-[11px]" style={{ color: 'var(--subtle)' }}>
                 {CHAIN_ID_DISPLAY}
               </span>
@@ -325,7 +324,7 @@ export function Profile() {
       {/* ── About ── */}
       <Section label="About" delay={0.16}>
         <Row label="Version" value={APP_VERSION} valueColor="var(--muted)" />
-        <Row label="Network" value={NETWORK_LABEL} valueColor="var(--muted)" />
+        <Row label="Network" value={DISPLAY_NETWORK_NAME} valueColor="var(--muted)" />
         <Row label="Global cap" value="25 USDC" valueColor="var(--muted)" />
         <Row label="Protocol fee" value="0%" valueColor="var(--success)" />
         <div className="mx-4 h-px" style={{ background: 'var(--border)' }} />

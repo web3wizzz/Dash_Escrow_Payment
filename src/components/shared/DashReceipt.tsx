@@ -12,9 +12,9 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { CheckCircle2, ExternalLink, Share2, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 import { buildTxExplorerUrl } from '../../onchain-facts'
-import { TARGET_CHAIN_ID } from '../../config'
+import { TARGET_CHAIN_ID, DISPLAY_NETWORK_NAME } from '../../config'
 
-const NETWORK_LABEL = TARGET_CHAIN_ID === 5042 ? 'Arc Mainnet' : 'Arc Testnet'
+const NETWORK_LABEL = DISPLAY_NETWORK_NAME
 
 export interface ReceiptData {
   amount: string          // e.g. "5.00"

@@ -10,19 +10,14 @@
 
 import { BalanceHero }                              from '../components/home/BalanceHero'
 import { QuickActions, ProtectedPayments, LimitsCard, RecentActivity, SandboxBadge } from '../components/home/HomeCards'
-import { TARGET_CHAIN_ID }                          from '../config'
-
-const IS_TESTNET = TARGET_CHAIN_ID !== 5042
 
 export function Home() {
   return (
     <div className="space-y-5 pb-2">
-      {/* Environment indicator — right-aligned, no page title below it */}
-      {IS_TESTNET && (
-        <div className="flex justify-end">
-          <SandboxBadge />
-        </div>
-      )}
+      {/* Demo badge — right-aligned */}
+      <div className="flex justify-end">
+        <SandboxBadge />
+      </div>
 
       <BalanceHero />
 
