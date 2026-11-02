@@ -440,3 +440,59 @@
 {"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793319555135}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1793467481439}
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1793473003336}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1793579405081}
+{"level":"debug","message":"[vite] invalidate /src/main.tsx: Could not Fast Refresh (\"true\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1793579405082}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1793579405083}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793579405083}
+{"level":"debug","message":"[vite] hot updated: /src/pages/ScheduleDetail.tsx","timestamp":1793579405083}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Profile.tsx","timestamp":1793579405083}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/TxStatus.tsx","timestamp":1793579405084}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/WelcomeScreen.tsx","timestamp":1793579405084}
+{"level":"debug","message":"[vite] hot updated: /src/pages/OrderStatusPage.tsx","timestamp":1793579405084}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Schedules.tsx","timestamp":1793579405085}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleForm.tsx","timestamp":1793579405085}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleCard.tsx","timestamp":1793579405085}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/ChainGuard.tsx","timestamp":1793579405085}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/Permit2Notice.tsx","timestamp":1793579405086}
+{"level":"debug","message":"[vite] hot updated: /src/components/bills/BillOrderForm.tsx","timestamp":1793579405086}
+{"level":"debug","message":"[vite] hot updated: /src/components/send/SendForm.tsx","timestamp":1793579405086}
+{"level":"debug","message":"[vite] hot updated: /src/components/home/BalanceHero.tsx","timestamp":1793579405087}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Settings.tsx","timestamp":1793579405087}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/DashReceipt.tsx","timestamp":1793579405087}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1793579408402}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1793579408402}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/pages/ScheduleDetail.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Profile.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/TxStatus.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/WelcomeScreen.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/pages/OrderStatusPage.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Schedules.tsx","timestamp":1793579408403}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleForm.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleCard.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/ChainGuard.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/Permit2Notice.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/bills/BillOrderForm.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/send/SendForm.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/home/BalanceHero.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Settings.tsx","timestamp":1793579408404}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/DashReceipt.tsx","timestamp":1793579408404}
+{"level":"error","message":"Warning: You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.","timestamp":1793579412000}
+{"level":"debug","message":"[vite] hot updated: /src/main.tsx","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/pages/ScheduleDetail.tsx","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Profile.tsx","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/TxStatus.tsx","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/WelcomeScreen.tsx","timestamp":1793579412001}
+{"level":"debug","message":"[vite] hot updated: /src/pages/OrderStatusPage.tsx","timestamp":1793579412002}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Schedules.tsx","timestamp":1793579412002}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleForm.tsx","timestamp":1793579412002}
+{"level":"debug","message":"[vite] hot updated: /src/components/schedules/ScheduleCard.tsx","timestamp":1793579412002}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/ChainGuard.tsx","timestamp":1793579412002}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/Permit2Notice.tsx","timestamp":1793579412003}
+{"level":"debug","message":"[vite] hot updated: /src/components/bills/BillOrderForm.tsx","timestamp":1793579412003}
+{"level":"debug","message":"[vite] hot updated: /src/components/send/SendForm.tsx","timestamp":1793579412003}
+{"level":"debug","message":"[vite] hot updated: /src/components/home/BalanceHero.tsx","timestamp":1793579412003}
+{"level":"debug","message":"[vite] hot updated: /src/pages/Settings.tsx","timestamp":1793579412003}
+{"level":"debug","message":"[vite] hot updated: /src/components/shared/DashReceipt.tsx","timestamp":1793579412004}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1793579412292}
