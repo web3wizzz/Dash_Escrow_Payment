@@ -16,7 +16,6 @@ const walletConnectProjectId =
 
 const connectors = [
   injected({ target: 'metaMask' }),
-  injected(),
   ...(walletConnectProjectId
     ? [walletConnect({ projectId: walletConnectProjectId })]
     : []),
@@ -32,5 +31,5 @@ export const config = createConfig({
   },
 })
 
-export const TARGET_CHAIN_ID = arcTestnet.id // 5042002
+export const TARGET_CHAIN_ID = arcTestnet.id
 export const TARGET_CHAIN_ID_TESTNET = arcTestnet.id
